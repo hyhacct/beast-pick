@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+build/
+dist/
+release/
+*.spec
+!packaging/*.spec
+artifacts/
+logs/
+*.egg-info/
+settings.json
+settings.json.tmp
+*.lock
+*.dmp
+engine-exports.txt
+native-name-evidence.json

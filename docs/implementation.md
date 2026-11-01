@@ -1,0 +1,101 @@
+# beast-pick 实现与验证记录
+
+更新：2026-11-01。使用方法见 [README](../README.md)。
+
+## 开源版本与命名
+
+首次开源版本为 v0.2.0，开源日期为2026-11-01（Asia/Shanghai），代码采用MIT许可证。项目目录、命令、发行包和EXE名称统一为 beast-pick；Python导入包为 beast_pick。版本唯一来源为 beast_pick/__init__.py，发布流程见README和CHANGELOG。
+
+以下保留开发期间的历史证据，包含更名前的桌面文件名、日志名及旧构建哈希，不代表当前Release的文件名或校验值。当前下载包与校验值以GitHub Release为准。本地artifacts证据与日志不随源码上传。
+
+## 本地交付记录：箱柜开启与详细筛选（2026-11-01，更名前）
+
+本节为当前行为，取代下文历史记录中的“不提供自动开箱”。用户后续明确要求重新加入箱柜和锁箱开启，门仍排除。
+
+- 精确物品身份：ItemDescWithContext+8 指向定义；定义 slot99 必须为游戏 RVA 0x254530，定义+8 为 ttl 字符串，支持内联短串和指针字符串。与目录的 ID、大类共同核对后取得中文名和子类；仅缓存纯元数据。
+- 目录提取 inventorystuff 枚举、inventory 脚本和中文 binsloc。重复 Item 声明合并，防止后面的局部覆盖丢失 Name/ItemType。当前 4077 个 ID、71 子类；未知中文名显示内部标识。
+- 本地化名称中的嵌套 &key& 引用继续解析；未解引用、循环或超深引用退回真实物品 ID，避免筛选列表直接出现模板占位符。实际耐力强化剂、恢复强化剂名称已核验。
+- 规则为 item_rules.items 与 item_rules.subtypes 的显式布尔映射，缺省继承；优先级物品 > 子类 > 大类。尸体和 Container 始终用当前索引逐项领取；未知身份有精细规则时跳过；有排除项时不领不透明包。
+- 开启仅允许精确 Container / ComplexContainer，状态2，正常启用并通过 can-use action7；必须匹配196/197虚表入口。Container 有关联触发器时跳过。ComplexContainer 的 m_ForceNoLoot / m_LockpickDifficulty 字段必须反射验证，字段偏移分别1176/1008，相对 CRTTIObject slot6 返回的数据基址（实测 full+0x20），并非 full。
+- ComplexContainer 只允许空锁型或 easy/medium/hard/impossible；非空锁型还需独立开启 locked_containers。未知锁型、禁搜刮、门和未知类型跳过。不强写状态或锁字段。
+- 开启前校验 control slot67 为游戏 RVA 0x1EA9E80，并调用真实 IsSimulating。未进入模拟的箱柜保持原状，等待引擎自行激活。execute action7 后须同时检查状态1/5与生成的子目标数；仅状态变化不记成功。state5 可能由 MarkTakenOnOpen 设置且仍有内容，只有无子目标且剩余元数据为0时才可确认为无内容。
+- 开箱限流每秒1个；当轮开箱后立即结束候选处理，避免对象变化后使用同轮旧候选。两个新开关初始关闭。
+- artifacts/detailed-open-live.json：实际生产代理20秒扫描62轮，两个锁柜在14.0/14.7米处状态2→1，0脚本错误，3个武器目标保留。这份记录只证明请求和状态变化，不证明当场完成物品生成。artifacts/manual-container-trace.json 显示走近激活后才分别生成1、2个子目标。
+- artifacts/manual-container-trace-2.json：用户手动正常撬锁并开柜，action7先使状态2→1，再执行visual 0x11B9DD0、initialize 0x1137790、spawn 0x11F6520；子目标0→1，元数据2→1。随后MarkTakenOnOpen使状态1→5，子目标仍为1；用户确认可见物品。这份记录用于校准完整流程，不是生产代理自动开启的验收。
+- artifacts/final-active-open.json：加入IsSimulating检查后的生产代理，6米范围、尸体关闭、武器排除，10秒扫描33轮。4.4788米无锁ComplexContainer从state2、child0变为state5、child3；确认生成3个道具目标。罐头食品、手枪弹药领取并确认消失，雇佣兵冲锋枪仍在且被排除；附近原有冲锋枪弹药也领取。opened=1、items=3、blocked=0、error=null。此前两次前台条件未满足的尝试scans=0，均没有执行开箱。最新完整自动开箱样本为无锁柜子，锁箱仍保留试验标识。
+- artifacts/final-identities.json：运行时成功读取军用霰弹枪、虎爪刀、神射手步枪、Soda_FT/Water_FT等身份；同名“饮料”的两种ID可独立决定，Water_FT排除，Soda_FT允许。该文件是只读判定证据，非两种物品实领证明。
+- 原闪退根因仍未完全确认，保留shutdown→eternalize→detach。短时复测无闪退不等于长期稳定，当前验证仅覆盖已记录的样本。
+- 当时桌面文件为 %USERPROFILE%\Desktop\困兽自动搜刮新版.exe，SHA-256：FC10A78528662185DBE9052972356F767F36BC960398B01DE9188DA69C52C7EE。真实桌面EXE在清理开发PATH后通过Qt窗口、配置隔离与持久化、详细筛选、500米边界及游戏连接/停止/退出检查；包内代理、规则、profile、目录均与当时源码逐字节相同。22项Python与10项JS检查通过。旧桌面文件保留，用户需退出旧版后启动新版；桌面原设置未改动。
+
+## 实现
+
+Python 3.12 / PySide6 提供界面、热键、连接管理和日志；Frida 17.24.0 在游戏进程中运行一个小型 JavaScript 代理。代理调用引擎空间查询取得周围真实物体，按类型与状态筛选，使用游戏原有领取路径。
+
+固定适配 EXE 显示为 1.7.1.0na 的当前安装构建。连接时对实际加载的引擎 DLL、游戏 DLL 做 SHA-256 和映像大小校验，错误构建不安装运行钩子。哈希、偏移和入口在 `beast_pick/profiles/current.json`。Frida 17.25.0 在本机附加失败，故固定使用 17.24.0。
+
+## 原生调用
+
+- `ILevel::FindObjectsInRadius` 返回 IControlObject；通过运行时类型识别 BodyContainer、Container、ComplexContainer、DroppedItem、ContainerItem。
+- 当前构建 IGame 虚表 151、152、153 用于角色变换、玩家实体列表、本地玩家实体；由本地实体取得实际玩家对象。
+- 所有游戏查询和领取统一在 `IGame::GetGameTimeDelta` 的指定模拟更新调用点运行（引擎 RVA 0xBC3D22），不从 Python 工作线程直接调用领取函数。
+- BodyContainer：检查启用标记、状态 1、非空物品向量；调用已观察到的初始化与 ILootable 领取入口。返回成功且物品向量减少才计数。
+- DroppedItem / ContainerItem：复用本地玩家当前交互上下文，先调用正常可使用判定，再调用领取；清除交换标记，不使用 G 换装。下一次范围查询确认目标消失后才计数。
+- Container：只处理状态 1/2、启用标记正常且 full+0x570 没有附属脚本触发器的对象。虚表 196/197 必须匹配 0x1121810/0x1194280；状态 2 先正常 can-use/execute action 7，下一轮重新查询。状态 1 先正常 can-use action 1，再调用该类 init 0x118B190 与共用 ILootable 逐项领取，不强写状态。使用与尸体相同的 CategoryType 过滤和向量减少确认。
+- ComplexContainer：仅状态 2 且散落物品功能已启用时尝试打开；虚表 196/197 必须匹配 0x1121730/0x1193F50。正常 can-use/execute action 7 后确认状态 1，仅记为打开；下一轮查询生成的 ContainerItem，按现有筛选领取并确认消失。不把“打开”计为内容已经领取，不缓存子物品指针，不执行开锁动作。
+
+## 持续运行
+
+默认半径 8 米，按用户反馈扩展为可调 1–500 米，仅能查询到游戏已加载的目标。每 0.3 秒重新查询（扫描耗时上升时自动放缓，最大间隔 1.5 秒），每轮至多处理 3 个目标。不会保存下一轮需要执行的原生指针。失败按 2、4、8、16、30 秒退避；搜空的尸体不再领取。远距离领取尚需结合实际场景验证。
+
+暂停、加载、失去前台、本地玩家未就绪、玩家实体数不为 1 时等候。新场景需稳定后才查询。Python 心跳超过 5 秒没有更新即关闭功能。关闭窗口卸载钩子并断开。
+
+## 实测证据
+
+- `artifacts/auto-test-confirmed.json`：尸体领取返回成功，状态 1→5，两组物品向量均 1→0。
+- `artifacts/auto-pickup-confirmed.json`：用户准备的地面猎刀判定与领取均成功；随后从范围查询和屏幕提示中消失。
+- `logs/beast-autoloot.log`：完整界面运行时连续搜刮多具尸体，实测距离约 1.0–7.7 米；暂停、恢复、切到桌面与停止均有记录。
+- `artifacts/live-check.json`：后台与暂停期间领取、扫描保持 0，退出时停止并断开。
+- Python 检查覆盖构建哈希变化、缺失模块、非法半径、100 米边界、空功能选择、清理异常时仍断开，共 10 项通过。
+- 用户确认完整工具可正确拾取物品，并要求扩大首版 12 米上限；已在界面、Python 校验和原生代理同步提高到 100 米。
+- 修复独立 EXE 启动时报 QtCore DLL 函数缺失：PyInstaller 从开发环境 PATH 错收集 Poppler 的 ICU 78，只有 `ucnv_open_78` 等导出；Qt 6.12 需要 Windows ICU 的 `ucnv_open`。固定打包 spec 排除错误 ICU，并添加实际 EXE 的干净环境自检。`artifacts/packaged-self-check.json` 确认 Qt 6.12、Frida 17.24、100 米设置与游戏连接均通过，检查没有开启领取。
+
+诊断目录包含过程性材料，并非每份文件都代表最终版本。没有改动游戏安装资源或在安装目录放置插件。
+
+## 当前限制
+
+ContainerItem 已实测材料、贵重物品和消耗品领取。其他仅存在于组件系统的物品、特殊收藏品与任务机关不在白名单内。未验证背包满、死亡/过场、联机切换、读档压力及长时间运行。空间半径为球形，未判断墙体/楼层遮挡，可能领取隔墙但在半径内的目标。
+
+不能把本机实测扩大为所有物品、所有场景都已通过。后续适配继续复用正常判定与领取，不通过凭空增加背包物品代替搜刮。
+
+
+## 2026-11-01 更新
+
+- 使用 Windows 原生样式和系统调色板，删除深色网页卡片与自定义样式表；加入菜单、工具栏、分组框、列表和状态栏。
+- 半径的界面、Python 检查、代理检查统一为 1–500 米；保留原来的半径设置。分类后每轮至多执行 3 个目标，缓存 RTTI 类型，按耗时调整扫描间隔。
+- CategoryType 来自安装包 inventorystuff.scr 的 0–28 枚举，通过 ItemDescWithContext 的 102 号虚函数读取（游戏 RVA 0xA0EFC0）。DroppedItem 描述位于 full+0x5F0；ContainerItem 为 full+0x380；描述上下文为 desc+0x38。Getter 地址与运行时类型不匹配时跳过。
+- 9 类选择作用于尸体和散落物品，武器类别 0/1 包含近战、枪械及临场武器；未知类别跳过。存在任意排除时，17/19/27/28 类物资包及不透明物品不自动领取。
+- 尸体描述向量在 full+0x4C8，每项 0x160 字节。筛选开启时复用游戏 take-all 本身调用的逐项入口 RVA 0x1185A70，签名 bool(full,index,player,bool)，执行前重新计算索引；不改物品向量、不生成背包道具。真实向量减少后计数，同一尸体只计一次。
+- artifacts/filter-check.json：12 秒验证内 36 轮生产代理扫描，34 具尸体、21 个 ContainerItem 成功，3 个排除的武器原物体仍在，0 次阻塞、0 个未知类别，最远确认领取 312.9 米。并非对 500 米极限、所有临场武器实物样本或所有场景的覆盖验证。
+- Python 16 项与纯 JavaScript 筛选 5 项通过，实际 EXE 自检包含原生窗口初始化、500 米边界、筛选持久化和游戏连接；验证期间游戏代理默认停止。桌面交付默认排除武器，保留原半径，F6 开关、F8 停止。
+
+## 普通容器更新
+
+以下开箱实验记录已被后续闪退调查取代，不能视为当前交付范围或稳定性结论。当前交付只自动处理状态 1 的 Container；ComplexContainer 和所有 action 7 开箱代码已从生产代理移除。
+
+- `artifacts/container-direct-check.json`：用户面前 0.99 米的背包（Container）3 项材料逐项领取，物品向量 3→2→1→0，状态 1→5；3 次领取、0 次阻塞。用户确认画面已领取。
+- `artifacts/container-open-check.json`：30 米配置，35 轮实际扫描，正常打开 1 个 ComplexContainer；随后领取 3 个 ContainerItem（材料、消耗品），仍有 1 个按类别排除的目标，0 次阻塞、0 个脚本错误。只证明当前样本，未覆盖每一种柜子/箱子或锁定样本。
+- UI 增加普通容器开关、容器领取/开启统计及日志；旧界面配置缺少 containers 字段时默认开启。底层旧调用缺省为关闭新增功能，避免诊断脚本意外增加领取范围。配置校验允许只开普通容器。
+- 17 项 Python 回归检查通过；打包自检额外检查普通容器开关的持久化。所有新增领取和开箱仍位于已验证模拟线程回调，继续遵守前台、暂停、单人实体数、构建哈希及心跳限制。
+
+## 闪退调查及临时缓解（2026-11-01）
+
+- 用户确认游戏自行闪退。Windows Application Error 1000 记录 09:18:14 的 `0xc0000005`，执行地址 `0x7FFF6FEC022F` 不在已加载模块内。转储为本机 CrashDumps 中游戏 PID 37632 的文件，摘要见 `artifacts/container-crash-analysis.json`。摘要中的 stack_module_addresses 只是栈内地址扫描，不是完成符号化的调用栈，不能据此归咎于 Steam、NVIDIA 或窗口组件。
+- 上一次开箱测试结束于 09:17:23；连接自检的成功结果写于 09:18:13，随后即发生闪退。这个时间关系提示调查桥接卸载/回调生命周期，但尚不能证明根因。
+- 撤下所有自动开箱代码，保留已经实际验证并经用户确认的 Container 状态 1 逐项领取。箱柜需手动打开后按现有散落物品路径领取。
+- Client.close 正常路径先 shutdown 禁用领取、移除本工具游戏回调，再 eternalize 已停止的脚本并 detach；不立即卸载 Frida 运行时，以降低悬空可执行地址相关风险。空闲驻留持续到游戏退出，不存在领取定时器。shutdown 异常时仍尝试卸载并断开，错误返回到界面。
+- 回归检查更新为 18 项，增加停止→驻留→断开的顺序与异常清理检查。连接生命周期复测见 `artifacts/lifecycle-check.json`；短时存活不能替代长时间运行验证，当前仍属于缓解措施。
+- 用户随后明确要求不提供连续按 F 的自动开箱功能，因此该路径不再作为交付目标。保留长按 F 普通容器直接搜刮及手动打开后的物品拾取。
+- 重启后 PID 18436 连续 3 次生产 Client 连接、停止、关闭并断开，最后断开后观察 25 秒仍存活。该轮全程未启用领取，不构成长时间搜刮稳定性证明。
+- 桌面 EXE 带游戏连接的自检另暴露了工具自身 `0xc0000409` 退出异常，转储包含 Qt QObject/QWidget 析构路径；游戏 PID 18436 未退出。调整为在 Python 包装对象仍有效时显式销毁窗口；自检先销毁窗口及 QApplication，再验证游戏连接。重新打包后真实桌面 EXE 的 --check-game 返回 0，确认 UI、配置、连接和退出均通过，并继续观察 15 秒游戏存活。
+- 最终桌面 EXE SHA-256：`C22767510E3C757091E0E1ECC044C7CF4CAFF075248B83B3D927A385EE3AF2A7`。检查包内 agent.js、filters.js、profile 与当前源码逐字节相同。
+- 09:32 起用户通过新版实际窗口连接并开启运行；桌面日志出现连续普通容器材料/消耗品领取（含约 334 米样本）和散落物品拾取，游戏 PID 18436 继续存活。尚未完成长时间稳定性验证，不能据此宣布原游戏闪退根因已解决。
