@@ -1,16 +1,15 @@
 <div align="center">
 
-# beast-pick
+<img src="beast_pick/assets/beast-pick.png" alt="BP 补给箱标志" width="144" height="144">
 
-**Beast Pick · 困兽自动搜刮**
+# BP · 困兽自动搜刮
 
-把时间留给探索，让附近的战利品自动入袋。
+《消逝的光芒：困兽》自动搜刮工具
 
-[![Windows](https://img.shields.io/badge/Windows-x64-0078D4)](#运行环境)
-[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](#从源码运行)
-[![CI](https://github.com/hyhacct/beast-pick/actions/workflows/ci.yml/badge.svg)](https://github.com/hyhacct/beast-pick/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/hyhacct/beast-pick)](https://github.com/hyhacct/beast-pick/releases/latest)
-[![MIT](https://img.shields.io/badge/License-MIT-2EA44F)](LICENSE)
+[![Windows](https://img.shields.io/badge/Windows-x64-DDEBF7?style=flat-square&labelColor=DDEBF7)](#运行环境)
+[![CI](https://img.shields.io/github/actions/workflow/status/hyhacct/beast-pick/ci.yml?branch=main&style=flat-square&label=CI&labelColor=DEF3E8&color=DEF3E8)](https://github.com/hyhacct/beast-pick/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hyhacct/beast-pick?style=flat-square&label=Release&labelColor=E9E3F5&color=E9E3F5)](https://github.com/hyhacct/beast-pick/releases/latest)
+[![MIT](https://img.shields.io/badge/License-MIT-F0EDEA?style=flat-square&labelColor=F0EDEA)](LICENSE)
 
 [下载](https://github.com/hyhacct/beast-pick/releases/latest) · [功能](#功能一览) · [快速开始](#快速开始) · [物品筛选](#物品筛选) · [开发与发布](#开发与发布) · [常见问题](#常见问题)
 
