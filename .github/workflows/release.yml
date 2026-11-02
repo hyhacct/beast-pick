@@ -40,8 +40,8 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GH_REPO" \
             --verify-tag \
-            --title "Beast Pick $RELEASE_TAG" \
+            --title "BP $RELEASE_TAG" \
             --notes-file release/RELEASE_NOTES.md \
             --draft \
-            release/beast-pick.exe release/*.zip release/SHA256SUMS.txt
+            release/BP.exe release/BP-v*.zip release/SHA256SUMS.txt
           gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest

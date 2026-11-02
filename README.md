@@ -37,6 +37,7 @@
 | 搜索范围 | **1–500 米**，默认 8 米，保留已有设置 |
 | 运行控制 | F6 开始 / 暂停，F8 停止；暂停、加载和切出游戏时等候 |
 | 运行记录 | 显示中文物品名、领取距离、统计和连接状态 |
+| 内置更新 | 启动后检查 GitHub 正式版本，提示更新；用户决定是否下载，下载后校验 SHA-256 |
 
 只处理确认的容器类型；**门、未知锁型、特殊禁搜刮容器及关联机关会跳过**。搜索距离按空间直线计算，可能覆盖隔墙、隔层目标；未加载的目标无法检测。
 
@@ -51,7 +52,7 @@
 
 ### 下载 Windows 版
 
-前往 [Releases](https://github.com/hyhacct/beast-pick/releases/latest)，下载最新的 **beast-pick-v版本号-windows-x64.zip**，解压后运行 **beast-pick.exe**。
+前往 [Releases](https://github.com/hyhacct/beast-pick/releases/latest)，下载最新的 **BP-v版本号-windows-x64.zip**，解压后运行 **BP.exe**。BP 是 Beast Pick 的缩写；v0.2.x 的程序文件名为 beast-pick.exe。
 
 每个版本同时提供独立 EXE 和 SHA256SUMS.txt。发布包包含使用说明和 MIT 许可证；无需将文件放进游戏安装目录。
 
@@ -69,6 +70,14 @@ py -3.12 -m venv .venv
 ~~~
 
 安装后也可运行 .\.venv\Scripts\beast-pick.exe，或双击 [start-beast-pick.bat](start-beast-pick.bat)。
+
+### 检查与下载更新
+
+v0.3.1 起启动后自动在后台检查 GitHub 最新正式版本，也可点击主界面的“检查更新”或“帮助 → 检查更新”。发现新版时显示版本提示，点击“查看更新…”可阅读更新说明，并选择“下载新版…”或“稍后”。后台检查不会自动下载或弹窗打断游戏。
+
+下载时可选择保存位置、查看进度或取消。下载文件须通过发行版本的 SHA-256 校验才会保存；失败或取消不会覆盖已有文件。下载完成后退出旧版，用新版 EXE 替换原程序，保留旁边的 `settings.json` 即可保留设置。工具不会自动运行下载文件。
+
+检查失败时可重试或前往 [GitHub 发行页面](https://github.com/hyhacct/beast-pick/releases/latest) 手动下载。v0.2.x 版本需要先手动升级一次，才能使用内置更新。
 
 ### 连接与使用
 
@@ -142,7 +151,7 @@ node --check beast_pick\agent.js
 .\build.ps1
 ~~~
 
-输出为 **dist/beast-pick.exe**。构建使用 [packaging/beast-pick.spec](packaging/beast-pick.spec)，随后对真实 EXE 进行干净环境启动检查，并核对内置代理、规则、适配配置和物品目录。
+输出为 **dist/BP.exe**。构建使用 [packaging/beast-pick.spec](packaging/beast-pick.spec)，随后对真实 EXE 进行干净环境启动检查，并核对内置代理、规则、适配配置和物品目录。
 
 ~~~powershell
 # 单独复核打包结果
@@ -240,7 +249,7 @@ CI 中没有游戏进程，只能验证代码、界面和打包结果，不能�
 
 欢迎通过 [Issues](https://github.com/hyhacct/beast-pick/issues) 报告问题，或提交 Pull Request。请提供游戏构建、系统版本、目标类型、复现步骤和相关日志；提交前移除个人信息。
 
-命名统一为：仓库 / Python 发行包 / 启动命令 **beast-pick**，Python 导入包 **beast_pick**，Windows 程序 **beast-pick.exe**。具体流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+命名约定：仓库 / Python 发行包 / 源码启动命令为 **beast-pick**，Python 导入包为 **beast_pick**；Windows 程序使用简称 **BP.exe**。具体流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 

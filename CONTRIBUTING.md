@@ -27,7 +27,9 @@ node --test tests\agent.test.cjs tests\filters.test.cjs
 node --check beast_pick\agent.js
 ```
 
-修改构建、界面或包内资源后，还需运行 `build.ps1`，验证真实 `dist/beast-pick.exe`。`--check-game` 会连接游戏但不启用搜刮，不能代替实际领取验证。
+修改构建、界面或包内资源后，还需运行 `build.ps1`，验证真实 `dist/BP.exe`。`--check-game` 会连接游戏但不启用搜刮，不能代替实际领取验证。
+
+更新功能的默认测试使用本地模拟响应，不访问网络。需要验证 GitHub 连接时运行 `.\.venv\Scripts\python.exe tools\verify_updates.py`，可加 `--download artifacts\updater-live\BP.exe` 验证真实下载与校验，但不会执行下载的程序。打包后运行 `.\.venv\Scripts\python.exe tools\check_bundle.py --check-updates` 可检查发行 EXE 的实际网络运行时；网络检查不属于离线 CI 的必需项。
 
 ## 游戏适配
 
@@ -46,8 +48,8 @@ node --check beast_pick\agent.js
 | --- | --- |
 | 仓库、发行包、命令 | `beast-pick` |
 | Python 导入包 | `beast_pick` |
-| 窗口标题 | `Beast Pick · 困兽自动搜刮` |
-| Windows 构建 | `dist/beast-pick.exe` |
+| 窗口标题 | `BP · 困兽自动搜刮` |
+| Windows 构建 | `dist/BP.exe` |
 | 打包配置 | `packaging/beast-pick.spec` |
 | 日志 | `logs/beast-pick.log` |
 

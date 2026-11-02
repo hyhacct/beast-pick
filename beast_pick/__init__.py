@@ -1,2 +1,2 @@
 """Dying Light: The Beast local loot helper."""
-__version__ = '0.2.1'
+__version__ = '0.3.1'

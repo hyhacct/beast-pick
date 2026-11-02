@@ -11,11 +11,11 @@ version_info = VSVersionInfo(
                      mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0, 0)),
     kids=[StringFileInfo([StringTable('040904B0', [
         StringStruct('CompanyName', 'hyhacct'),
-        StringStruct('FileDescription', 'Beast Pick'),
+        StringStruct('FileDescription', 'BP · 困兽自动搜刮'),
         StringStruct('FileVersion', version),
-        StringStruct('InternalName', 'beast-pick'),
+        StringStruct('InternalName', 'BP'),
         StringStruct('LegalCopyright', 'Copyright (c) 2026 hyhacct'),
-        StringStruct('OriginalFilename', 'beast-pick.exe'),
+        StringStruct('OriginalFilename', 'BP.exe'),
         StringStruct('ProductName', 'Beast Pick'),
         StringStruct('ProductVersion', version),
     ])]), VarFileInfo([VarStruct('Translation', [1033, 1200])])],
@@ -25,6 +25,7 @@ a = Analysis(
     datas=[(str(root / 'beast_pick' / 'agent.js'), 'beast_pick'),
            (str(root / 'beast_pick' / 'filters.js'), 'beast_pick'),
            (str(root / 'beast_pick' / 'data'), 'beast_pick/data'),
+           (str(root / 'beast_pick' / 'assets'), 'beast_pick/assets'),
            (str(root / 'beast_pick' / 'profiles'), 'beast_pick/profiles')],
     hiddenimports=[], hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=[], noarchive=False, optimize=0,
@@ -43,6 +44,7 @@ if removed:
     print('Excluded incompatible bundled ICU:', removed)
 
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='beast-pick', version=version_info,
+exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='BP', version=version_info,
+          icon=str(root / 'beast_pick' / 'assets' / 'beast-pick.ico'),
           debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
           runtime_tmpdir=None, console=False, disable_windowed_traceback=False)

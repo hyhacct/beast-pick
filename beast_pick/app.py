@@ -9,12 +9,12 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot, QLockFile, Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot, QLockFile, Qt, QStandardPaths, QUrl
+from PySide6.QtGui import QFont, QIcon, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QDoubleSpinBox, QGroupBox, QGridLayout, QHBoxLayout,
     QHeaderView, QLabel, QMainWindow, QMessageBox, QPushButton, QStyle, QStyleFactory,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QFileDialog, QProgressDialog,
 )
 
 from .backend import Client, MAX_RADIUS
@@ -22,6 +22,8 @@ from . import __version__
 from .categories import ITEM_TYPES, checked_item_types
 from .catalog import checked_rules, has_allowed
 from .filter_dialog import FilterDialog
+from .update_client import UpdateClient
+from .updates import LATEST_URL
 
 BASE = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
 STATUS = {
@@ -85,7 +87,7 @@ class Worker(QObject):
 class Window(QMainWindow):
     command = Signal(str, dict)
 
-    def __init__(self):
+    def __init__(self, *, check_updates=True):
         super().__init__()
         self.connected = False
         self.enabled = False
@@ -94,10 +96,13 @@ class Window(QMainWindow):
         self.last_status = None
         self.loading_settings = True
         self.config_dirty = False
+        self.available_release = None
+        self.update_manual = False
+        self.update_progress = None
         self.item_rules = checked_rules()
         self.keys = {0x75: False, 0x77: False}  # F6 / F8
-        self.setWindowTitle(f"Beast Pick · 困兽自动搜刮  v{__version__}")
-        self.setWindowIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveHDIcon))
+        self.setWindowTitle(f"BP · 困兽自动搜刮  v{__version__}")
+        self.setWindowIcon(QApplication.windowIcon())
         self.setMinimumSize(700, 570)
         self.resize(760, 660)
         self.settings_timer = QTimer(self)
@@ -105,6 +110,17 @@ class Window(QMainWindow):
         self.settings_timer.setInterval(180)
         self.settings_timer.timeout.connect(self.flush_settings)
         self.build_ui()
+        self.update_client = UpdateClient(self)
+        self.update_client.checked.connect(self.on_update_checked)
+        self.update_client.failed.connect(self.on_update_failed)
+        self.update_client.progress.connect(self.on_update_progress)
+        self.update_client.downloaded.connect(self.on_update_downloaded)
+        self.update_client.cancelled.connect(self.on_update_cancelled)
+        self.update_timer = QTimer(self)
+        self.update_timer.setSingleShot(True)
+        self.update_timer.timeout.connect(self.check_updates)
+        if check_updates:
+            self.update_timer.start(1500)
         self.load_settings()
         self.loading_settings = False
         self.thread = QThread(self)
@@ -158,12 +174,21 @@ class Window(QMainWindow):
         self.stop_action = operations.addAction("停止\tF8", self.stop)
         help_menu = self.menuBar().addMenu("帮助(&H)")
         help_menu.addAction("使用说明", self.show_help)
+        self.update_action = help_menu.addAction("检查更新…", lambda: self.check_updates(True))
 
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
         layout.setContentsMargins(12, 10, 12, 8)
         layout.setSpacing(10)
+        update_row = QHBoxLayout()
+        self.update_label = QLabel(f"当前版本 v{__version__}")
+        self.update_label.setWordWrap(True)
+        update_row.addWidget(self.update_label, 1)
+        self.update_button = QPushButton("检查更新")
+        self.update_button.clicked.connect(self.update_clicked)
+        update_row.addWidget(self.update_button)
+        layout.addLayout(update_row)
         options_box = QGroupBox("搜刮设置")
         options = QVBoxLayout(options_box)
         row = QHBoxLayout()
@@ -270,6 +295,141 @@ class Window(QMainWindow):
             widget.toggled.connect(self.settings_changed)
         self.radius.valueChanged.connect(self.settings_changed)
         self.refresh_controls()
+
+    def check_updates(self, manual=False):
+        if self.quitting or self.update_client.busy:
+            return
+        self.update_timer.stop()
+        self.update_manual = manual
+        self.update_label.setText("正在检查 GitHub 新版本…")
+        self.set_update_busy(True)
+        self.update_client.check()
+
+    def set_update_busy(self, busy):
+        self.update_button.setEnabled(not busy)
+        self.update_action.setEnabled(not busy)
+
+    def show_update_notice(self):
+        if self.available_release:
+            self.update_label.setText(f"发现新版本 {self.available_release.tag}（当前 v{__version__}）")
+            self.update_button.setText("查看更新…")
+        else:
+            self.update_label.setText(f"当前版本 v{__version__}，未发现更新版本")
+            self.update_button.setText("检查更新")
+
+    def on_update_checked(self, release):
+        if self.quitting:
+            return
+        self.available_release = release if release.newer_than(__version__) else None
+        self.set_update_busy(False)
+        self.show_update_notice()
+        if self.available_release:
+            self.add_log(f"发现新版本 {release.tag}，可点击‘查看更新’决定是否下载。")
+            if self.update_manual:
+                self.update_clicked()
+        elif self.update_manual:
+            QMessageBox.information(self, "检查更新", f"当前版本 v{__version__}，未发现更新的正式版本。")
+
+    def update_clicked(self):
+        if self.quitting or self.update_client.busy:
+            return
+        release = self.available_release
+        if release is None:
+            self.check_updates(True)
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle("发现新版本")
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        box.setText(f"当前版本：v{__version__}\n最新版本：{release.tag}\n\n是否下载新版程序？")
+        box.setInformativeText("下载完成后，退出旧版并替换 EXE；保留 settings.json 可保留设置。")
+        box.setDetailedText(release.notes)
+        download = box.addButton("下载新版…", QMessageBox.ButtonRole.AcceptRole)
+        page = box.addButton("查看发行页面", QMessageBox.ButtonRole.ActionRole)
+        later = box.addButton("稍后", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(later)
+        box.setEscapeButton(later)
+        box.exec()
+        if box.clickedButton() == page:
+            QDesktopServices.openUrl(QUrl(release.page_url))
+        elif box.clickedButton() == download:
+            folder = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or str(BASE)
+            filename, _ = QFileDialog.getSaveFileName(self, "保存新版程序",
+                str(Path(folder) / f"BP-{release.tag}.exe"), "Windows 程序 (*.exe)")
+            if filename:
+                self.begin_update_download(release, filename)
+
+    def begin_update_download(self, release, filename):
+        self.update_manual = True
+        self.set_update_busy(True)
+        self.update_label.setText(f"正在下载 {release.tag}…")
+        self.update_progress = QProgressDialog("正在获取更新文件…", "取消下载", 0, 0, self)
+        self.update_progress.setWindowTitle("下载更新")
+        self.update_progress.setWindowModality(Qt.WindowModality.WindowModal)
+        self.update_progress.setAutoClose(False)
+        self.update_progress.setAutoReset(False)
+        self.update_progress.canceled.connect(self.update_client.cancel)
+        self.update_progress.show()
+        try:
+            self.update_client.download(release, Path(filename))
+        except Exception as exc:
+            self.on_update_failed(str(exc))
+
+    def on_update_progress(self, received, total):
+        if self.update_progress is None:
+            return
+        mib = received / (1024 * 1024)
+        if total > 0:
+            self.update_progress.setRange(0, 1000)
+            self.update_progress.setValue(min(1000, received * 1000 // total))
+            self.update_progress.setLabelText(f"已下载 {mib:.1f} / {total / (1024 * 1024):.1f} MB，完成后校验文件…")
+        else:
+            self.update_progress.setLabelText(f"已下载 {mib:.1f} MB，完成后校验文件…")
+
+    def close_update_progress(self):
+        if self.update_progress is not None:
+            dialog, self.update_progress = self.update_progress, None
+            dialog.reset()
+            dialog.close()
+            dialog.deleteLater()
+
+    def on_update_downloaded(self, filename):
+        self.close_update_progress()
+        self.set_update_busy(False)
+        if self.quitting:
+            return
+        self.show_update_notice()
+        self.add_log(f"新版下载完成，SHA-256 校验通过：{filename}")
+        box = QMessageBox(self)
+        box.setWindowTitle("新版下载完成")
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        box.setText(f"新版程序已保存并通过校验：\n{filename}")
+        box.setInformativeText("退出旧版后，用下载的 EXE 替换原程序。保留原目录的 settings.json 即可保留设置。")
+        folder = box.addButton("打开下载文件夹", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("关闭", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() == folder:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(filename).parent)))
+
+    def on_update_failed(self, message):
+        self.close_update_progress()
+        self.set_update_busy(False)
+        if self.quitting:
+            return
+        self.show_update_notice()
+        if self.available_release is None:
+            self.update_label.setText("更新检查失败，可点击‘检查更新’重试")
+        self.add_log("更新未完成：" + message)
+        if self.update_manual:
+            QMessageBox.warning(self, "更新未完成", message + "\n\n也可前往 GitHub 发行页面手动下载：\n" + LATEST_URL)
+
+    def on_update_cancelled(self):
+        self.close_update_progress()
+        self.set_update_busy(False)
+        if not self.quitting:
+            self.show_update_notice()
+            self.add_log("已取消更新下载。")
 
     def show_help(self):
         QMessageBox.information(self, "使用说明", "1. 进入单人或联机存档，点击‘连接游戏’。\n"
@@ -494,6 +654,9 @@ class Window(QMainWindow):
         event.ignore()
         if not self.quitting:
             self.quitting = True
+            self.update_timer.stop()
+            self.update_client.cancel()
+            self.close_update_progress()
             self.enabled = False
             self.flush_settings()
             self.settings_timer.stop()
@@ -508,6 +671,9 @@ class Window(QMainWindow):
 
 def configure_application(app):
     app.setApplicationName("beast-pick")
+    app.setWindowIcon(QIcon(str(Path(__file__).resolve().parent / "assets" / "beast-pick.ico")))
+    if sys.platform == "win32":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("hyhacct.beast-pick")
     # Keep Windows controls, focus rectangles, menus and the system palette.
     styles = {name.lower(): name for name in QStyleFactory.keys()}
     app.setStyle(styles.get("windowsvista", styles.get("windows", "Fusion")))

@@ -19,11 +19,11 @@ def main():
         raise SystemExit('先运行 build.ps1 并通过当前版本的打包检查。')
     output = ROOT / 'release'
     output.mkdir(exist_ok=True)
-    executable = output / 'beast-pick.exe'
-    shutil.copy2(ROOT / 'dist/beast-pick.exe', executable)
-    archive = output / f'beast-pick-v{__version__}-windows-x64.zip'
+    executable = output / 'BP.exe'
+    shutil.copy2(ROOT / 'dist/BP.exe', executable)
+    archive = output / f'BP-v{__version__}-windows-x64.zip'
     with ZipFile(archive, 'w', ZIP_DEFLATED) as bundle:
-        bundle.write(executable, 'beast-pick.exe')
+        bundle.write(executable, 'BP.exe')
         bundle.write(ROOT / 'LICENSE', 'LICENSE')
         bundle.write(ROOT / 'packaging/USAGE.zh-CN.txt', '使用说明.txt')
     checksums = ''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in (executable, archive))
