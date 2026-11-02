@@ -23,7 +23,7 @@ Node.js 用于运行 JavaScript 策略检查。普通单元测试不要求游戏
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
-node --test tests\filters.test.cjs
+node --test tests\agent.test.cjs tests\filters.test.cjs
 node --check beast_pick\agent.js
 ```
 

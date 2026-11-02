@@ -281,8 +281,7 @@ function tick(game) {
     if (!foregroundGame()) { pause('background'); return; }
     if (!level || now - levelSeen > 1000 || now - levelStable < 1200) { pause('waiting_level'); return; }
     if (type(level) !== '.?AVLevelDI@@' || loading(level) || frozen(level)) { pause('paused'); return; }
-    const players = vf(game, profile.players_slot, 'pointer', ['pointer'])(game);
-    if (players.isNull() || size(players) !== 1) { pause('single_player_only'); return; }
+    // Co-op uses this machine's local player, regardless of the session's player count.
     const entity = vf(game, profile.local_entity_slot, 'pointer', ['pointer'])(game);
     if (entity.isNull()) { pause('waiting_player'); return; }
     const control = getControl(entity);

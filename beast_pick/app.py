@@ -27,7 +27,7 @@ BASE = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__
 STATUS = {
     "waiting": "等待游戏更新", "disabled": "已停止", "running": "正在自动搜刮",
     "background": "等待切回游戏", "waiting_level": "等待场景就绪", "paused": "游戏已暂停或正在加载",
-    "single_player_only": "仅支持单人场景，当前已暂停", "waiting_player": "等待角色就绪",
+    "waiting_player": "等待本地角色就绪",
     "lease_expired": "连接超时，已自动停止", "error": "出现错误，已停止",
 }
 
@@ -123,7 +123,7 @@ class Window(QMainWindow):
         self.hotkeys.setInterval(70)
         self.hotkeys.timeout.connect(self.check_keys)
         self.hotkeys.start()
-        self.add_log("进入单人存档后连接游戏，按 F6 开始，F8 停止。")
+        self.add_log("进入单人或联机存档后连接游戏，按 F6 开始，F8 停止。")
 
     def build_ui(self):
         toolbar = QToolBar("操作", self)
@@ -272,7 +272,7 @@ class Window(QMainWindow):
         self.refresh_controls()
 
     def show_help(self):
-        QMessageBox.information(self, "使用说明", "1. 进入单人存档，点击‘连接游戏’。\n"
+        QMessageBox.information(self, "使用说明", "1. 进入单人或联机存档，点击‘连接游戏’。\n"
             "2. 设置半径、大类和详细筛选。\n3. 切回游戏按 F6 开启，F8 停止。\n\n"
             "详细筛选支持中文名称和子类；优先级：具体物品 > 子类 > 大类。\n"
             "选择‘跟随上级’可恢复继承规则。无法确认身份的目标在有详细规则时跳过。\n"

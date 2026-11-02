@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "beast-pick"
 dynamic = ["version"]
-description = "Local single-player loot helper for Dying Light: The Beast"
+description = "Local loot helper for Dying Light: The Beast"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

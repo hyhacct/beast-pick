@@ -16,11 +16,13 @@
 
 </div>
 
-面向《消逝的光芒：困兽》单人游戏的 Windows 桌面工具。开启后持续检测附近已加载的尸体、容器和散落物品，按你的规则搜刮和拾取。
+面向《消逝的光芒：困兽》的 Windows 桌面工具，可在单人或联机存档中启用。开启后持续检测本机角色附近已加载的尸体、容器和散落物品，按你的规则搜刮和拾取。
 
 采用 PySide6 原生 Windows 风格界面，提供快捷键、实时统计、中文物品记录和分层筛选。当前适配 **1.7.1.0na 的指定游戏构建**，连接时以实际 DLL 的 SHA-256 校验；版本文字相同也不代表构建相同。
 
 > **当前状态：** 尸体、普通容器及独立物品领取已有本机实测。箱柜自动开启默认关闭，跳过撬锁为试验功能。曾出现游戏闪退，根因尚未完全确认，尚未完成长期稳定性验证。
+
+自 v0.2.1 起解除玩家数量限制，联机时继续使用本机角色进行交互。房主与加入者的实际拾取、物品归属及同步尚待联机实测。
 
 ## 功能一览
 
@@ -43,7 +45,7 @@
 ### 运行环境
 
 - Windows x64；当前在 Windows 11 上验证。
-- 游戏已启动并进入单人存档，构建须与[适配配置](beast_pick/profiles/current.json)匹配。
+- 游戏已启动并进入单人或联机存档，构建须与[适配配置](beast_pick/profiles/current.json)匹配。
 - 下载打包版无需安装 Python。源码运行需要 Python 3.12 或更高版本；当前验证环境为 Python 3.12、PySide6 6.12 和 Frida 17.24.0。
 - Node.js 仅在运行 JavaScript 开发检查时需要。
 
@@ -70,7 +72,7 @@ py -3.12 -m venv .venv
 
 ### 连接与使用
 
-1. 进入单人存档，关闭旧版工具，再启动 Beast Pick。
+1. 进入单人或联机存档，关闭旧版工具，再启动 Beast Pick。
 2. 点击 **连接游戏**，设置半径和允许拾取的物品类型。
 3. 切回游戏，按 **F6** 开始；再次按 F6 暂停，按 **F8** 停止。
 
@@ -135,7 +137,7 @@ flowchart LR
 ~~~powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m pytest -q
-node --test tests\filters.test.cjs
+node --test tests\agent.test.cjs tests\filters.test.cjs
 node --check beast_pick\agent.js
 .\build.ps1
 ~~~
