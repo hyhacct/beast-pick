@@ -63,6 +63,14 @@ def test_fallback_only_accepts_our_stable_release_page():
             release_from_redirect(url)
 
 
+def test_fallback_extracts_release_notes_from_the_published_page():
+    html = '<p>unrelated</p><div data-test-selector="body-content"><h3>本次更新</h3><ul><li>自动替换 &amp; 重启</li><li><strong>更简单</strong></li></ul></div><p>footer</p>'
+    release = release_from_redirect('https://github.com/hyhacct/beast-pick/releases/tag/v0.3.2', html)
+    assert '本次更新' in release.notes and '自动替换 & 重启' in release.notes
+    assert '更简单' in release.notes
+    assert 'unrelated' not in release.notes and 'footer' not in release.notes
+
+
 def test_checksum_selects_only_the_exe_and_rejects_missing_or_ambiguous_values():
     digest = "a1" * 32
     assert executable_checksum(digest.upper() + "  BP.exe\n" + "b" * 64 + "  archive.zip\n") == digest

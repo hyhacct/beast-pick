@@ -113,7 +113,7 @@ class UpdateClient(QObject):
             if phase in ("api", "page"):
                 try:
                     release = (release_from_api(json.loads(self.buffer)) if phase == "api"
-                               else release_from_redirect(reply.url().toString()))
+                               else release_from_redirect(reply.url().toString(), self.buffer.decode('utf-8', errors='replace')))
                 except (ValueError, TypeError, KeyError):
                     if phase == "api":
                         self._get(LATEST_URL, "page")

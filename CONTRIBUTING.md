@@ -31,6 +31,8 @@ node --check beast_pick\agent.js
 
 更新功能的默认测试使用本地模拟响应，不访问网络。需要验证 GitHub 连接时运行 `.\.venv\Scripts\python.exe tools\verify_updates.py`，可加 `--download artifacts\updater-live\BP.exe` 验证真实下载与校验，但不会执行下载的程序。打包后运行 `.\.venv\Scripts\python.exe tools\check_bundle.py --check-updates` 可检查发行 EXE 的实际网络运行时；网络检查不属于离线 CI 的必需项。
 
+自动替换测试使用实际 Windows EXE，检查占用等待、替换、启动确认、失败恢复及设置保留。需要验证真实打包程序时运行 `.\.venv\Scripts\python.exe tools\verify_self_update.py`；它在隔离目录执行替换并打开真实 BP 窗口，不连接游戏，验证后关闭该测试窗口即可。
+
 ## 游戏适配
 
 - 记录游戏构建、模块 SHA-256、映像大小以及可复现样本，不根据版本文字猜测偏移。

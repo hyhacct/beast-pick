@@ -5,16 +5,17 @@ import json
 import logging
 import sys
 import tempfile
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot, QLockFile, Qt, QStandardPaths, QUrl
-from PySide6.QtGui import QFont, QIcon, QDesktopServices
+from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot, QLockFile, Qt
+from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QDoubleSpinBox, QGroupBox, QGridLayout, QHBoxLayout,
     QHeaderView, QLabel, QMainWindow, QMessageBox, QPushButton, QStyle, QStyleFactory,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QFileDialog, QProgressDialog,
+    QToolBar, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, QProgressDialog, QDialog,
 )
 
 from .backend import Client, MAX_RADIUS
@@ -23,7 +24,8 @@ from .categories import ITEM_TYPES, checked_item_types
 from .catalog import checked_rules, has_allowed
 from .filter_dialog import FilterDialog
 from .update_client import UpdateClient
-from .updates import LATEST_URL
+from .update_dialog import UpdateDialog
+from .installer import acknowledge_update, prepare_update, start_install, discard_update
 
 BASE = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
 STATUS = {
@@ -87,7 +89,7 @@ class Worker(QObject):
 class Window(QMainWindow):
     command = Signal(str, dict)
 
-    def __init__(self, *, check_updates=True):
+    def __init__(self, *, check_updates=True, update_prompts=True):
         super().__init__()
         self.connected = False
         self.enabled = False
@@ -99,6 +101,13 @@ class Window(QMainWindow):
         self.available_release = None
         self.update_manual = False
         self.update_progress = None
+        self.update_prompts = update_prompts
+        self.update_target = Path(sys.executable) if getattr(sys, 'frozen', False) else None
+        self.update_session = None
+        self.install_process = None
+        self.install_timer = QTimer(self)
+        self.install_timer.setInterval(100)
+        self.install_timer.timeout.connect(self.poll_update_install)
         self.item_rules = checked_rules()
         self.keys = {0x75: False, 0x77: False}  # F6 / F8
         self.setWindowTitle(f"BP · 困兽自动搜刮  v{__version__}")
@@ -120,7 +129,7 @@ class Window(QMainWindow):
         self.update_timer.setSingleShot(True)
         self.update_timer.timeout.connect(self.check_updates)
         if check_updates:
-            self.update_timer.start(1500)
+            self.update_timer.start(100)
         self.load_settings()
         self.loading_settings = False
         self.thread = QThread(self)
@@ -312,7 +321,7 @@ class Window(QMainWindow):
     def show_update_notice(self):
         if self.available_release:
             self.update_label.setText(f"发现新版本 {self.available_release.tag}（当前 v{__version__}）")
-            self.update_button.setText("查看更新…")
+            self.update_button.setText("立即更新")
         else:
             self.update_label.setText(f"当前版本 v{__version__}，未发现更新版本")
             self.update_button.setText("检查更新")
@@ -324,8 +333,8 @@ class Window(QMainWindow):
         self.set_update_busy(False)
         self.show_update_notice()
         if self.available_release:
-            self.add_log(f"发现新版本 {release.tag}，可点击‘查看更新’决定是否下载。")
-            if self.update_manual:
+            self.add_log(f"发现新版本 {release.tag}。")
+            if self.update_prompts:
                 self.update_clicked()
         elif self.update_manual:
             QMessageBox.information(self, "检查更新", f"当前版本 v{__version__}，未发现更新的正式版本。")
@@ -337,30 +346,18 @@ class Window(QMainWindow):
         if release is None:
             self.check_updates(True)
             return
-        box = QMessageBox(self)
-        box.setWindowTitle("发现新版本")
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setTextFormat(Qt.TextFormat.PlainText)
-        box.setText(f"当前版本：v{__version__}\n最新版本：{release.tag}\n\n是否下载新版程序？")
-        box.setInformativeText("下载完成后，退出旧版并替换 EXE；保留 settings.json 可保留设置。")
-        box.setDetailedText(release.notes)
-        download = box.addButton("下载新版…", QMessageBox.ButtonRole.AcceptRole)
-        page = box.addButton("查看发行页面", QMessageBox.ButtonRole.ActionRole)
-        later = box.addButton("稍后", QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(later)
-        box.setEscapeButton(later)
-        box.exec()
-        if box.clickedButton() == page:
-            QDesktopServices.openUrl(QUrl(release.page_url))
-        elif box.clickedButton() == download:
-            folder = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or str(BASE)
-            filename, _ = QFileDialog.getSaveFileName(self, "保存新版程序",
-                str(Path(folder) / f"BP-{release.tag}.exe"), "Windows 程序 (*.exe)")
-            if filename:
-                self.begin_update_download(release, filename)
+        if UpdateDialog(release, self).exec() == QDialog.DialogCode.Accepted:
+            self.begin_update_download(release)
 
-    def begin_update_download(self, release, filename):
+    def begin_update_download(self, release):
         self.update_manual = True
+        try:
+            if self.update_target is None:
+                raise RuntimeError('请使用打包版 BP.exe 进行自动更新。')
+            self.update_session = prepare_update(self.update_target)
+        except Exception as exc:
+            self.on_update_failed(str(exc))
+            return
         self.set_update_busy(True)
         self.update_label.setText(f"正在下载 {release.tag}…")
         self.update_progress = QProgressDialog("正在获取更新文件…", "取消下载", 0, 0, self)
@@ -371,7 +368,7 @@ class Window(QMainWindow):
         self.update_progress.canceled.connect(self.update_client.cancel)
         self.update_progress.show()
         try:
-            self.update_client.download(release, Path(filename))
+            self.update_client.download(release, self.update_session.payload)
         except Exception as exc:
             self.on_update_failed(str(exc))
 
@@ -394,25 +391,43 @@ class Window(QMainWindow):
             dialog.deleteLater()
 
     def on_update_downloaded(self, filename):
-        self.close_update_progress()
-        self.set_update_busy(False)
         if self.quitting:
             return
-        self.show_update_notice()
-        self.add_log(f"新版下载完成，SHA-256 校验通过：{filename}")
-        box = QMessageBox(self)
-        box.setWindowTitle("新版下载完成")
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setTextFormat(Qt.TextFormat.PlainText)
-        box.setText(f"新版程序已保存并通过校验：\n{filename}")
-        box.setInformativeText("退出旧版后，用下载的 EXE 替换原程序。保留原目录的 settings.json 即可保留设置。")
-        folder = box.addButton("打开下载文件夹", QMessageBox.ButtonRole.AcceptRole)
-        box.addButton("关闭", QMessageBox.ButtonRole.RejectRole)
-        box.exec()
-        if box.clickedButton() == folder:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(filename).parent)))
+        try:
+            if self.update_session is None or Path(filename).resolve() != self.update_session.payload:
+                raise RuntimeError('更新文件位置不匹配')
+            self.update_progress.setCancelButton(None)
+            self.update_progress.setRange(0, 0)
+            self.update_progress.setLabelText('正在安装并重启…')
+            self.install_process = start_install(self.update_session, self.update_client.expected_hash)
+            self.install_started = time.monotonic()
+            self.install_timer.start()
+        except Exception as exc:
+            self.on_update_failed(str(exc))
+
+    def poll_update_install(self):
+        status = self.update_session.status()
+        if status.get('state') == 'ready':
+            self.install_timer.stop()
+            self.close()  # Stop looting and detach cleanly before the helper replaces this EXE.
+        elif status.get('state') == 'failed' or self.install_process.poll() is not None or time.monotonic() - self.install_started > 15:
+            self.install_timer.stop()
+            if self.install_process.poll() is None:
+                self.install_process.terminate()
+                self.install_process.wait(timeout=3)
+            self.install_process = None
+            self.on_update_failed(status.get('message') or '无法启动更新，请重试。')
+
+    def discard_staged_update(self):
+        if self.update_session is not None and self.install_process is None:
+            try:
+                discard_update(self.update_session)
+            except OSError:
+                logging.exception('Could not remove update staging files')
+            self.update_session = None
 
     def on_update_failed(self, message):
+        self.discard_staged_update()
         self.close_update_progress()
         self.set_update_busy(False)
         if self.quitting:
@@ -422,9 +437,10 @@ class Window(QMainWindow):
             self.update_label.setText("更新检查失败，可点击‘检查更新’重试")
         self.add_log("更新未完成：" + message)
         if self.update_manual:
-            QMessageBox.warning(self, "更新未完成", message + "\n\n也可前往 GitHub 发行页面手动下载：\n" + LATEST_URL)
+            QMessageBox.warning(self, "更新未完成", message)
 
     def on_update_cancelled(self):
+        self.discard_staged_update()
         self.close_update_progress()
         self.set_update_busy(False)
         if not self.quitting:
@@ -655,7 +671,9 @@ class Window(QMainWindow):
         if not self.quitting:
             self.quitting = True
             self.update_timer.stop()
+            self.install_timer.stop()
             self.update_client.cancel()
+            self.discard_staged_update()
             self.close_update_progress()
             self.enabled = False
             self.flush_settings()
@@ -693,7 +711,8 @@ def main():
     (BASE / "logs").mkdir(exist_ok=True)
     handler = RotatingFileHandler(BASE / "logs" / "beast-pick.log", maxBytes=1_000_000, backupCount=2, encoding="utf-8")
     logging.basicConfig(level=logging.INFO, handlers=[handler], format="%(asctime)s %(levelname)s %(message)s")
-    window = Window(); window.show()
+    window = Window(check_updates='--skip-update-check' not in sys.argv); window.show()
+    acknowledge_update(sys.argv)
     result = app.exec()
     # Do not leave the Python QMainWindow override alive until QApplication's
     # destructor runs during interpreter finalization.

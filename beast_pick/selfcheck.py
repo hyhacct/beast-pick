@@ -19,6 +19,7 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
         from .catalog import load_catalog
         from .filter_dialog import FilterDialog
         from .updates import Release
+        from .update_dialog import UpdateDialog
         # Initialize the actual window, settings and worker with isolated settings.
         app = QApplication([])
         ui.configure_application(app)
@@ -28,7 +29,7 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
                          item_types={key: key != 'weapons' for key in ITEM_TYPES},
                          item_rules={"items": {"Water_FT": False}, "subtypes": {"throwables:ItemType_Grenade": False}})
             (ui.BASE / 'settings.json').write_text(json.dumps(saved), encoding='utf-8')
-            window = ui.Window(check_updates=False)
+            window = ui.Window(check_updates=False, update_prompts=False)
             assert app.applicationName() == 'beast-pick'
             assert window.windowTitle() == f'BP · 困兽自动搜刮  v{__version__}'
             assert not window.windowIcon().isNull()
@@ -36,9 +37,14 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
             assert not window.update_timer.isActive()
             window.on_update_checked(Release('v99.0.0', '自检更新说明'))
             assert 'v99.0.0' in window.update_label.text()
-            assert window.update_button.text() == '查看更新…'
+            assert window.update_button.text() == '立即更新'
             assert not window.update_client.busy  # Finding an update never starts a download.
             report.update(update_notice=True, update_download_requires_consent=True, custom_icon=True)
+            prompt = UpdateDialog(Release('v99.0.0', '自检更新说明'), window)
+            assert prompt.notes.toPlainText() == '自检更新说明'
+            assert prompt.update_button.text() == '立即更新' and prompt.later_button.text() == '稍后'
+            delete(prompt)
+            report['update_prompt_notes_visible'] = True
             if check_updates:
                 loop = QEventLoop()
                 timeout = QTimer()

@@ -31,4 +31,4 @@ include = ["beast_pick*"]
 version = {attr = "beast_pick.__version__"}
 
 [tool.setuptools.package-data]
-beast_pick = ["*.js", "profiles/*.json", "data/*.json", "assets/*.ico", "assets/*.png"]
+beast_pick = ["*.js", "*.ps1", "profiles/*.json", "data/*.json", "assets/*.ico", "assets/*.png"]

@@ -7,11 +7,12 @@ import sys
 import pytest
 from PySide6.QtCore import QEventLoop, QObject, Signal, QTimer, QUrl
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog
 
 from beast_pick.update_client import UpdateClient
 from beast_pick.updates import API_URL, LATEST_URL, Release
 from test_updates import metadata
+from beast_pick.update_dialog import UpdateDialog
 
 
 @pytest.fixture(scope="module")
@@ -199,32 +200,41 @@ def window(qt_app, tmp_path, monkeypatch):
     delete(result)
 
 
-def test_update_banner_waits_for_user_and_later_does_not_download(window, monkeypatch):
-    window.on_update_checked(Release("v99.0.0", "更新内容"))
-    assert "v99.0.0" in window.update_label.text()
-    assert window.update_button.text() == "查看更新…"
-    assert not window.update_client.busy
+def test_startup_popup_shows_notes_and_later_does_not_download(window, monkeypatch):
     seen = []
-    def later(box):
-        seen.append(box.detailedText())
-        next(button for button in box.buttons() if button.text() == "稍后").click()
-    monkeypatch.setattr(QMessageBox, "exec", later)
-    window.update_clicked()
+    def later(dialog):
+        seen.append(dialog.notes.toPlainText())
+        assert dialog.update_button.text() == '立即更新'
+        assert dialog.later_button.text() == '稍后'
+        return QDialog.DialogCode.Rejected
+    monkeypatch.setattr(UpdateDialog, "exec", later)
+    window.on_update_checked(Release("v99.0.0", "更新内容"))
     assert seen == ["更新内容"]
+    assert "v99.0.0" in window.update_label.text()
     assert not window.update_client.busy
 
 
-def test_only_download_choice_and_save_location_start_a_download(window, tmp_path, monkeypatch):
-    window.on_update_checked(Release("v99.0.0"))
-    destination = tmp_path / "update.exe"
+def test_confirming_update_starts_directly_without_a_file_picker(window, monkeypatch):
     calls = []
-    def choose_download(box):
-        next(button for button in box.buttons() if button.text() == "下载新版…").click()
-    monkeypatch.setattr(QMessageBox, "exec", choose_download)
-    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *args: (str(destination), ""))
-    monkeypatch.setattr(window, "begin_update_download", lambda release, filename: calls.append((release.tag, filename)))
-    window.update_clicked()
-    assert calls == [("v99.0.0", str(destination))]
+    monkeypatch.setattr(UpdateDialog, "exec", lambda dialog: QDialog.DialogCode.Accepted)
+    monkeypatch.setattr(window, "begin_update_download", lambda release: calls.append(release.tag))
+    window.on_update_checked(Release("v99.0.0"))
+    assert calls == ["v99.0.0"]
+
+
+def test_download_uses_internal_staging_and_cancel_removes_it(window, tmp_path, monkeypatch):
+    target = tmp_path / 'BP.exe'
+    target.write_bytes(b'old-exe')
+    window.update_target = target
+    release = Release('v99.0.0')
+    window.update_client.manager = Manager({})
+    window.begin_update_download(release)
+    folder = window.update_session.folder
+    assert folder.parent == target.parent
+    assert window.update_client.destination == folder / 'new.exe'
+    window.update_client.cancel()
+    assert not folder.exists()
+    assert target.read_bytes() == b'old-exe'
 
 
 def test_closing_window_cancels_active_update(window):

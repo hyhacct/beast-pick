@@ -24,7 +24,7 @@ archive = CArchiveReader(str(exe))
 icu = [name for name in archive.toc if Path(name).name.lower().startswith(('icuuc', 'icuin', 'icudt'))]
 assert not icu, f'Incompatible ICU bundled: {icu}'
 payload_hashes = {}
-for relative in ('beast_pick/agent.js', 'beast_pick/filters.js', 'beast_pick/profiles/current.json', 'beast_pick/data/items.json',
+for relative in ('beast_pick/agent.js', 'beast_pick/filters.js', 'beast_pick/apply_update.ps1', 'beast_pick/profiles/current.json', 'beast_pick/data/items.json',
                  'beast_pick/assets/beast-pick.ico', 'beast_pick/assets/beast-pick.png'):
     entry = next(name for name in archive.toc if name.replace('\\', '/') == relative)
     bundled = archive.extract(entry)
@@ -71,5 +71,6 @@ assert report['max_radius'] == 500
 assert report['item_types']['weapons'] is False
 assert report['style'] in ('windowsvista', 'windows')
 assert report['custom_icon'] and report['update_notice'] and report['update_download_requires_consent']
+assert report['update_prompt_notes_visible']
 print(json.dumps(report, ensure_ascii=False, indent=2))
 print(json.dumps({'payloads_match_source': payload_hashes}, indent=2))

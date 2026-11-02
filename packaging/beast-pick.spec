@@ -23,6 +23,7 @@ version_info = VSVersionInfo(
 a = Analysis(
     [str(root / 'run_tool.py')], pathex=[str(root)], binaries=[],
     datas=[(str(root / 'beast_pick' / 'agent.js'), 'beast_pick'),
+           (str(root / 'beast_pick' / 'apply_update.ps1'), 'beast_pick'),
            (str(root / 'beast_pick' / 'filters.js'), 'beast_pick'),
            (str(root / 'beast_pick' / 'data'), 'beast_pick/data'),
            (str(root / 'beast_pick' / 'assets'), 'beast_pick/assets'),

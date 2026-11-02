@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html.parser import HTMLParser
 import re
 from urllib.parse import urlsplit
 
@@ -69,12 +70,41 @@ def release_from_api(payload: dict) -> Release:
     return release
 
 
-def release_from_redirect(url: str) -> Release:
+class _ReleaseNotes(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.depth = 0
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if self.depth:
+            if tag not in ('br', 'hr', 'img', 'input', 'meta', 'link', 'wbr'):
+                self.depth += 1
+            if tag in ('p', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'pre'):
+                self.parts.append('\n' + ('• ' if tag == 'li' else ''))
+        elif dict(attrs).get('data-test-selector') == 'body-content':
+            self.depth = 1
+
+    def handle_endtag(self, tag):
+        if self.depth:
+            self.depth -= 1
+            if tag in ('p', 'li', 'h1', 'h2', 'h3', 'h4', 'pre'):
+                self.parts.append('\n')
+
+    def handle_data(self, data):
+        if self.depth:
+            self.parts.append(data)
+
+
+def release_from_redirect(url: str, html: str = '') -> Release:
     parsed = urlsplit(url)
     prefix = f"/{REPOSITORY}/releases/tag/"
     if parsed.scheme != "https" or parsed.netloc != "github.com" or not parsed.path.startswith(prefix) or parsed.query or parsed.fragment:
         raise ValueError("未能获取最新正式发行版本")
-    return Release(parsed.path[len(prefix):])
+    parser = _ReleaseNotes()
+    parser.feed(html)
+    notes = '\n'.join(line.strip() for line in ''.join(parser.parts).splitlines() if line.strip())
+    return Release(parsed.path[len(prefix):], notes[:16000] or '该版本暂无更新说明。')
 
 
 def executable_checksum(text: str, filename: str = "BP.exe") -> str:
