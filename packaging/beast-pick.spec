@@ -48,4 +48,10 @@ pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name='BP', version=version_info,
           icon=str(root / 'beast_pick' / 'assets' / 'beast-pick.ico'),
           debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
-          runtime_tmpdir=None, console=False, disable_windowed_traceback=False)
+          # Keep the one-file extraction outside the shared system TEMP tree.
+          # Some antivirus / cleanup tools race PyInstaller while it loads
+          # python312.dll from %TEMP%\_MEI..., which makes a self-update look
+          # like a failed application start. LocalAppData is per-user and
+          # remains writable for the same installs that can self-update.
+          runtime_tmpdir=r'%LOCALAPPDATA%\BP\runtime', console=False,
+          disable_windowed_traceback=False)

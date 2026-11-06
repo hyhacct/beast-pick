@@ -238,9 +238,9 @@ CI 中没有游戏进程，只能验证代码、界面和打包结果，不能�
 </details>
 
 <details>
-<summary><strong>EXE 提示 QtCore DLL 无法加载？</strong></summary>
+<summary><strong>EXE 提示 Python DLL 或 QtCore DLL 无法加载？</strong></summary>
 
-已知原因之一是构建环境将不兼容的 ICU DLL 打入程序。请使用仓库提供的 build.ps1 和打包配置重新构建，并确认 check_bundle.py 通过。报告时请附 Windows 版本和完整错误信息。
+更新失败时如果提示 `python312.dll` 无法加载，请先安装 v0.3.5 或更新版本；该版本将单文件运行时目录移到用户目录，避开系统临时目录的安全软件拦截。QtCore DLL 错误的已知原因之一是构建环境将不兼容的 ICU DLL 打入程序；源码构建请使用仓库提供的 build.ps1 和打包配置，并确认 check_bundle.py 通过。报告时请附 Windows 版本和完整错误信息。
 
 </details>
 

@@ -17,6 +17,21 @@ function Replace-WithRetry([string]$source, [string]$destination, [string]$backu
     }
 }
 
+function Stop-ProcessTree([System.Diagnostics.Process]$process) {
+    if (-not $process) { return }
+    try {
+        $process.Refresh()
+        if (-not $process.HasExited) {
+            & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F | Out-Null
+        }
+        for ($attempt=0; $attempt -lt 50; $attempt++) {
+            $process.Refresh()
+            if ($process.HasExited) { return }
+            Start-Sleep -Milliseconds 200
+        }
+    } catch { }
+}
+
 function Get-Digest([string]$path) {
     $stream = [IO.File]::OpenRead($path)
     $sha = [Security.Cryptography.SHA256]::Create()
@@ -43,6 +58,7 @@ try {
     if ((Get-Digest $payload) -ne $plan.payload_sha256) { throw 'Update checksum mismatch' }
     Replace-WithRetry $payload $target $backup
     $replaced = $true
+    # Quote the staging path as one argument when it contains spaces.
     $newProcess = Start-Process -FilePath $target -WorkingDirectory $directory -ArgumentList @('--complete-update', ('"' + $stage + '"')) -PassThru
     $started = Join-Path $stage 'started'
     for ($attempt=0; $attempt -lt 150; $attempt++) {
@@ -62,9 +78,11 @@ try {
     $failure = $_.Exception.Message
     try {
         if ($replaced) {
-            if ($newProcess -and -not $newProcess.HasExited) {
-                & "$env:SystemRoot\System32\taskkill.exe" /PID $newProcess.Id /T /F | Out-Null
-            }
+            # A PyInstaller loader error can leave a modal Windows error
+            # dialog and keep the new image mapped. Kill it and wait before
+            # restoring the old EXE, otherwise File.Replace reports that the
+            # target is still in use and the rollback itself fails.
+            Stop-ProcessTree $newProcess
             Replace-WithRetry $backup $target (Join-Path $stage 'failed.exe')
         }
         if ($oldExited -and (Get-Digest $target) -eq $plan.current_sha256) { Start-Process -FilePath $target -WorkingDirectory $directory -ArgumentList '--skip-update-check' | Out-Null }

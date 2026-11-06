@@ -21,6 +21,7 @@ parser.add_argument('--check-updates', action='store_true')
 options = parser.parse_args()
 exe = options.exe
 archive = CArchiveReader(str(exe))
+assert b'%LOCALAPPDATA%\\BP\\runtime' in exe.read_bytes(), 'EXE must use the per-user runtime extraction directory'
 icu = [name for name in archive.toc if Path(name).name.lower().startswith(('icuuc', 'icuin', 'icudt'))]
 assert not icu, f'Incompatible ICU bundled: {icu}'
 payload_hashes = {}
