@@ -1,31 +1,23 @@
 {
-  "id": "beast-1.7.1.0na-local",
-  "label": "困兽 1.7.1.0na（当前安装构建）",
-  "modules": {
-    "engine_x64_rwdi.dll": {
-      "sha256": "3dcae152c002f1d549df2ed12c21cc38ddb6b25fd989345f0c413c7442243f1b",
-      "size": 43859968,
-      "timestamp": 1789448872
-    },
-    "gamedll_ph_x64_rwdi.dll": {
-      "sha256": "ddb68c8f87ba2afd0e561b2d1adb9235467c29069fb1cd1619db81e1056378eb",
-      "size": 66113536,
-      "timestamp": 1789447159
-    }
+  "id": "beast-ph-ft-patch08-20261030-6550878",
+  "label": "困兽 ph-ft patch08（2026-10-30 / 6550878）",
+  "game_build": {
+    "name": "ph-ft_pc_tech_rel-ph-ft-patch08_202610301710_6550878_b51v__nightly",
+    "steam_build_id": "26402545"
   },
-  "scheduler_return_rva": 12336418,
+  "scheduler_return_rva": 12274148,
   "player_transform_slot": 151,
   "players_slot": 152,
   "local_entity_slot": 153,
-  "body_init_rva": 18395280,
+  "body_init_rva": 18445952,
   "container": {
-    "init_rva": 18395536,
-    "can_rva": 17963024,
-    "execute_rva": 18432640,
+    "init_rva": 18446208,
+    "can_rva": 18013312,
+    "execute_rva": 18482160,
     "linked_trigger_offset": 1392
   },
-  "body_take_rva": 18372720,
-  "body_take_one_rva": 18373232,
+  "body_take_rva": 18423360,
+  "body_take_one_rva": 18423872,
   "body_item_stride": 352,
   "body_init_slot": 220,
   "body_loot_offset": 984,
@@ -34,32 +26,44 @@
     1224,
     1240
   ],
-  "item_execute_rva": 18433200,
-  "dropped_execute_rva": 14607984,
+  "item_execute_rva": 18482720,
+  "dropped_execute_rva": 14658992,
   "player_context_offset": 9312,
   "item_execute_slot": 197,
   "dropped_description_offset": 1520,
   "item_description_offset": 896,
   "description_context_offset": 56,
   "description_category_slot": 102,
-  "description_category_rva": 10547136,
+  "description_category_rva": 10582448,
   "item_used_offset": 1264,
   "trigger_enabled_offsets": [
     456,
     457
   ],
   "item_identity": {
-    "name_rva": 2442544,
+    "name_rva": 2445680,
     "name_offset": 8,
     "name_slot": 99
   },
   "complex_container": {
-    "can_rva": 17962800,
-    "execute_rva": 18431824,
+    "can_rva": 18013088,
+    "execute_rva": 18481344,
     "lock_property_offset": 1008,
     "no_loot_property_offset": 1176,
     "child_count_offset": 1408,
     "metadata_count_offset": 1248
   },
-  "control_simulating_rva": 32153216
+  "control_simulating_rva": 32276832,
+  "modules": {
+    "engine_x64_rwdi.dll": {
+      "sha256": "000fcc064bd512a93cb2eaa6da5f34dcba4e792ba636a897a4630b5637d2c0d4",
+      "size": 43479040,
+      "timestamp": 1793389620
+    },
+    "gamedll_ph_x64_rwdi.dll": {
+      "sha256": "4f421509f28881c4dd8a744c06d5ccab28017422224809814eeaef127dd075a1",
+      "size": 66367488,
+      "timestamp": 1793377809
+    }
+  }
 }

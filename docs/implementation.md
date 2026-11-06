@@ -59,7 +59,7 @@ Windows EXE 与窗口标题使用简称 BP（Beast Pick），输出为 dist/BP.e
 
 Python 3.12 / PySide6 提供界面、热键、连接管理和日志；Frida 17.24.0 在游戏进程中运行一个小型 JavaScript 代理。代理调用引擎空间查询取得周围真实物体，按类型与状态筛选，使用游戏原有领取路径。
 
-固定适配 EXE 显示为 1.7.1.0na 的当前安装构建。连接时对实际加载的引擎 DLL、游戏 DLL 做 SHA-256 和映像大小校验，错误构建不安装运行钩子。哈希、偏移和入口在 `beast_pick/profiles/current.json`。Frida 17.25.0 在本机附加失败，故固定使用 17.24.0。
+固定适配 `ph-ft_pc_tech_rel-ph-ft-patch08_202610301710_6550878_b51v__nightly`（Steam BuildID `26402545`）。连接时对实际加载的引擎 DLL、游戏 DLL 做 SHA-256 和映像大小校验，错误构建不安装运行钩子。哈希、偏移和入口在 `beast_pick/profiles/current.json`；本轮重新核对了模拟线程回调、尸体领取、容器 action 入口、散落物品领取、物品身份和模拟状态入口。Frida 17.25.0 在本机附加失败，故固定使用 17.24.0。
 
 ## 原生调用
 
