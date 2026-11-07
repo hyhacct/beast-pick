@@ -47,6 +47,18 @@ def file_hash(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def fresh_environment():
+    """Start a new PyInstaller one-file process with no inherited extraction state."""
+    environment = os.environ.copy()
+    for name in list(environment):
+        if name.startswith('_PYI_') or name == '_MEIPASS2':
+            environment.pop(name, None)
+    # PyInstaller 6.22+ uses this flag to force a fresh one-file extraction
+    # when an EXE is restarted by another PyInstaller process.
+    environment['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
+    return environment
+
+
 def start_install(session: InstallSession, expected_hash: str, *, parent_pid=None, no_error_dialog=False):
     if file_hash(session.payload) != expected_hash:
         raise ValueError('更新文件校验失败，请重试')
@@ -60,7 +72,8 @@ def start_install(session: InstallSession, expected_hash: str, *, parent_pid=Non
     if no_error_dialog:
         args.append('-NoErrorDialog')
     return subprocess.Popen(args, cwd=session.target.parent,
-                            creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True)
+                            creationflags=subprocess.CREATE_NO_WINDOW, close_fds=True,
+                            env=fresh_environment())
 
 
 def discard_update(session: InstallSession | None):

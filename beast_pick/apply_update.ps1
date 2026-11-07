@@ -6,6 +6,13 @@ $replaced = $false
 $newProcess = $null
 $oldExited = $false
 
+# A one-file PyInstaller process passes its unpacked-runtime variables to the
+# updater. Do not let the replacement EXE reuse the old _MEI directory after
+# the old process has exited and cleaned it up.
+Get-ChildItem Env: | Where-Object { $_.Name -like '_PYI_*' -or $_.Name -eq '_MEIPASS2' } |
+    ForEach-Object { Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue }
+$env:PYINSTALLER_RESET_ENVIRONMENT = '1'
+
 function Write-Status([string]$state, [string]$message = '') {
     @{state=$state; message=$message} | ConvertTo-Json -Compress | Set-Content -LiteralPath $statusFile -Encoding UTF8
 }

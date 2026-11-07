@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from beast_pick.installer import acknowledge_update, discard_update, file_hash, prepare_update, start_install
+from beast_pick.installer import acknowledge_update, discard_update, file_hash, fresh_environment, prepare_update, start_install
 
 
 def wait_until(predicate, timeout=12):
@@ -71,6 +71,24 @@ def test_acknowledgement_requires_the_expected_target_and_hash(tmp_path):
     acknowledge_update(['--complete-update', str(session.folder)], target)
     assert not (session.folder / 'started').exists()
     discard_update(session)
+
+
+def test_fresh_environment_drops_inherited_pyinstaller_runtime(monkeypatch):
+    monkeypatch.setenv('_PYI_APPLICATION_HOME_DIR', r'C:\old\_MEI123')
+    monkeypatch.setenv('_PYI_ARCHIVE_FILE', r'C:\old\BP.exe')
+    monkeypatch.setenv('_MEIPASS2', r'C:\old\_MEI123')
+    environment = fresh_environment()
+    assert '_PYI_APPLICATION_HOME_DIR' not in environment
+    assert '_PYI_ARCHIVE_FILE' not in environment
+    assert '_MEIPASS2' not in environment
+    assert environment['PYINSTALLER_RESET_ENVIRONMENT'] == '1'
+
+
+def test_update_helper_resets_pyinstaller_runtime_environment():
+    script = (Path(__file__).resolve().parents[1] / 'beast_pick' / 'apply_update.ps1').read_text(encoding='utf-8')
+    assert "-like '_PYI_*'" in script
+    assert "-eq '_MEIPASS2'" in script
+    assert "$env:PYINSTALLER_RESET_ENVIRONMENT = '1'" in script
 
 
 @pytest.mark.parametrize('payload_name', ['new', 'bad'])
