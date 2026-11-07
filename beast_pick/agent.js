@@ -9,7 +9,10 @@ let config = {radius: 8, corpses: true, items: true, containers: true, item_type
 let stats = {status: 'waiting', corpses: 0, items: 0, containers: 0, opened: 0, scans: 0, nearbyCorpses: 0, nearbyContainers: 0,
     nearbyItems: 0, filtered: 0, unknown: 0, objects: 0, attempts: 0, blocked: 0, scanMs: 0, error: null};
 const listeners = [], retries = new Map(), pending = new Map(), nativeCache = new Map();
-const typeCache = new Map(), itemCache = new Map(), containerLayouts = new Set(), lootedBodies = new Set();
+const typeCache = new Map(), itemCache = new Map(), containerLayouts = new Set(), lootedBodies = new Set(), knownBodies = new Set();
+// Keep all native loot calls on the simulation thread, but drain a current
+// target in one callback.  A separate worker would race the game's vectors.
+const bodyBatchLimit = 16;
 const capacity = 65536;
 const vector = Memory.alloc(16), storage = Memory.alloc(capacity * 8);
 const center = Memory.alloc(12), context = Memory.alloc(128), pidOut = Memory.alloc(4);
@@ -67,7 +70,10 @@ function identity(control, position) {
 function retry(key, now) {
     const old = retries.get(key);
     const failures = (old?.failures || 0) + 1;
-    retries.set(key, {failures, next: now + Math.min(30000, 2000 * 2 ** Math.min(failures - 1, 4)), seen: now});
+    // A failed can-interact check is usually a transient simulation-frame
+    // condition.  The old 2/4/8/16/30 second backoff made a nearby corpse look
+    // permanently missed after it became interactable.
+    retries.set(key, {failures, next: now + Math.min(5000, 250 * 2 ** Math.min(failures - 1, 4)), seen: now});
 }
 function targetSnapshot(full) {
     return {state: full.add(profile.body_state_offset).readS32(),
@@ -231,23 +237,29 @@ function corpse(target, player, now) {
     if (!init.equals(gameDll.base.add(ordinary ? profile.container.init_rva : profile.body_init_rva)) || !take.equals(gameDll.base.add(profile.body_take_rva)))
         throw Error('Loot interface does not match the supported build');
     native(init, 'void', ['pointer'])(full);
-    const selection = bodySelection(full);
-    if (!selection.selected.length) return;
-    stats.attempts++;
-    // The game's own take-all loop calls this same take-one function for each
-    // index. Pick one current index when filtering, keeping excluded entries.
-    const index = selection.selected[selection.selected.length - 1];
-    const item = selection.identities[index];
-    // Always select a current item index, including when all broad groups are on.
-    const ok = native(gameDll.base.add(profile.body_take_one_rva), 'bool', ['pointer', 'uint', 'pointer', 'bool'])(full, index, player, 0);
-    const after = targetSnapshot(full);
-    const changed = after.counts.some((n, i) => n < before.counts[i]);
-    if (ok && changed) {
+    const takeOne = native(gameDll.base.add(profile.body_take_one_rva), 'bool', ['pointer', 'uint', 'pointer', 'bool']);
+    let drained = 0, blocked = false;
+    // Re-read the selection after every successful call.  The game compacts
+    // the vector immediately, so retaining an index across calls can skip an
+    // item or address the wrong entry.
+    for (; drained < bodyBatchLimit; drained++) {
+        const current = targetSnapshot(full);
+        const selection = bodySelection(full);
+        if (!selection.selected.length) break;
+        const index = selection.selected[selection.selected.length - 1];
+        const item = selection.identities[index];
+        stats.attempts++;
+        const ok = takeOne(full, index, player, 0);
+        const after = targetSnapshot(full);
+        const changed = ok && after.counts.some((n, i) => n < current.counts[i]);
+        if (!changed) { blocked = true; break; }
         if (!lootedBodies.has(target.key)) { stats[ordinary ? 'containers' : 'corpses']++; lootedBodies.add(target.key); }
-        retries.set(target.key, {failures: 0, next: now + 300, seen: now});
         send({event: 'loot', kind: ordinary ? 'container' : 'corpse', distance: target.distance, ...item,
-            group: LootPolicy.group(item.category, profile.item_categories), before, after});
-    } else {
+            group: LootPolicy.group(item.category, profile.item_categories), before: current, after});
+    }
+    if (drained) {
+        retries.set(target.key, {failures: 0, next: now + 250, seen: now});
+    } else if (blocked) {
         stats.blocked++;
         retry(target.key, now);
     }
@@ -305,6 +317,8 @@ function tick(game) {
         const pos = xyz(worldTransform(p));
         const distance = Math.hypot(...pos.map((v, j) => v - position[j]));
         const key = identity(p, pos);
+        const freshBody = isBody && !knownBodies.has(key);
+        if (isBody) knownBodies.add(key);
         present.add(key);
         if (!Number.isFinite(distance) || distance > config.radius || !allowed(p.sub(16))) continue;
         let wantOpen = false;
@@ -349,8 +363,9 @@ function tick(game) {
         const old = retries.get(key);
         if (old) old.seen = now;
         if (pending.has(key) || (old && now < old.next)) continue;
-        candidates.push({control: p, position: pos, distance, key, type: name, isBody, isContainer, isComplex, wantOpen});
+        candidates.push({control: p, position: pos, distance, key, type: name, isBody, isContainer, isComplex, wantOpen, freshBody});
     }
+    for (const key of knownBodies) if (!present.has(key)) knownBodies.delete(key);
     for (const [key, entry] of pending) {
         if (!present.has(key)) {
             // Moving away cannot turn an unconfirmed attempt into a success.
@@ -365,7 +380,9 @@ function tick(game) {
             pending.delete(key); stats.blocked++; retry(key, now);
         }
     }
-    candidates.sort((a, b) => a.distance - b.distance);
+    // Newly created corpses are usually the target the player is waiting for.
+    // Keep nearest-first ordering within the fresh/old groups.
+    candidates.sort((a, b) => Number(b.freshBody) - Number(a.freshBody) || a.distance - b.distance);
     // Bound work per simulation update; refresh the entire query on the next tick.
     for (const target of candidates.slice(0, 3)) {
         if (!enabled || Date.now() > leaseUntil) break;
@@ -397,7 +414,7 @@ rpc.exports = {
         listeners.push(Interceptor.attach(exp('?GetTimeWeatherSystem@ILevel@@QEBAPEAVCSystem@TimeWeather@@XZ'), {
             onEnter(a) {
                 const now = Date.now();
-                if (!level || !level.equals(a[0])) { level = a[0]; levelStable = now; pending.clear(); retries.clear(); lootedBodies.clear(); itemCache.clear(); }
+                if (!level || !level.equals(a[0])) { level = a[0]; levelStable = now; pending.clear(); retries.clear(); lootedBodies.clear(); knownBodies.clear(); itemCache.clear(); }
                 levelSeen = now;
             }
         }));
@@ -434,7 +451,7 @@ rpc.exports = {
             item_types: {...c.item_types}, item_rules: {items: {...rules.items}, subtypes: {...rules.subtypes}}};
         retries.clear();
         enabled = !!c.enabled; leaseUntil = Date.now() + 5000;
-        pending.clear(); stats.error = null; stats.status = enabled ? 'waiting' : 'disabled';
+        pending.clear(); knownBodies.clear(); stats.error = null; stats.status = enabled ? 'waiting' : 'disabled';
         publish(true); return {...stats, enabled};
     },
     heartbeat() { leaseUntil = Date.now() + 5000; return {...stats, enabled, pending: pending.size}; },
