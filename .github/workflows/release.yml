@@ -40,7 +40,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GH_REPO" \
             --verify-tag \
-            --title "BP $RELEASE_TAG" \
+            --title "Beast Pick (BP) $RELEASE_TAG — Dying Light: The Beast Auto Loot" \
             --notes-file release/RELEASE_NOTES.md \
             --draft \
             release/BP.exe release/BP-v*.zip release/SHA256SUMS.txt

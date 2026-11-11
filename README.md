@@ -1,10 +1,12 @@
 <div align="center">
 
-<img src="beast_pick/assets/beast-pick.png" alt="BP 补给箱标志" width="144" height="144">
+<img src="beast_pick/assets/beast-pick.png" alt="Beast Pick (BP) — Dying Light: The Beast Auto Loot Tool" width="144" height="144">
 
-# BP · 困兽自动搜刮
+# Beast Pick — Dying Light: The Beast Auto Loot Tool
 
-《消逝的光芒：困兽》自动搜刮工具
+**BP ·《消逝的光芒：困兽》自动搜刮 / 自动拾取工具**
+
+简体中文 · [English](README.en.md)
 
 [![Windows](https://img.shields.io/badge/Windows-x64-DDEBF7?style=flat-square&labelColor=DDEBF7)](#运行环境)
 [![CI](https://img.shields.io/github/actions/workflow/status/hyhacct/beast-pick/ci.yml?branch=main&style=flat-square&label=CI&labelColor=DEF3E8&color=DEF3E8)](https://github.com/hyhacct/beast-pick/actions/workflows/ci.yml)
@@ -15,7 +17,16 @@
 
 </div>
 
+**Beast Pick (BP)** is a Windows auto loot and auto pickup tool for **Dying Light: The Beast**. Automatically loot nearby loaded corpses, containers and loose items with customizable filters, hotkeys and in-app updates. Read the [English guide](README.en.md) for downloads, setup, supported builds and known limitations. The desktop UI and resolved item names are currently in Chinese.
+
 面向《消逝的光芒：困兽》的 Windows 桌面工具，可在单人或联机存档中启用。开启后持续检测本机角色附近已加载的尸体、容器和散落物品，按你的规则搜刮和拾取。
+
+核心功能：
+
+- **自动搜刮 / Auto Loot：** 尸体、普通容器和散落物品，支持 **1–500 米**可配置半径，默认 8 米。
+- **精细筛选：** **9 个大类、71 个子类、4,077 个物品定义**，可按具体物品拾取或跳过。
+- **快捷控制与记录：** F6 开始 / 暂停、F8 停止，提供中文物品记录和实时统计。
+- **可选自动开箱与内置更新：** 箱柜自动开启默认关闭；跳过撬锁为试验功能。
 
 采用 PySide6 原生 Windows 风格界面，提供快捷键、实时统计、中文物品记录和分层筛选。当前适配 **ph-ft patch08（2026-10-30 / 6550878，Steam BuildID 26402545）**，连接时以实际 DLL 的 SHA-256 校验；版本文字相同也不代表构建相同。
 
