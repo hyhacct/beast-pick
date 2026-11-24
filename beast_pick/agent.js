@@ -5,6 +5,7 @@
 let profile = null, engine = null, gameDll = null, level = null;
 let levelSeen = 0, levelStable = 0, enabled = false, busy = false;
 let leaseUntil = 0, lastTick = 0, lastPublish = 0, lastOpen = 0;
+let rapidMelee = null;
 let config = {radius: 8, corpses: true, items: true, containers: true, item_types: {}, item_rules: {items: {}, subtypes: {}}};
 let stats = {status: 'waiting', corpses: 0, items: 0, containers: 0, opened: 0, scans: 0, nearbyCorpses: 0, nearbyContainers: 0,
     nearbyItems: 0, filtered: 0, unknown: 0, objects: 0, attempts: 0, blocked: 0, scanMs: 0, error: null};
@@ -17,6 +18,7 @@ const capacity = 65536;
 const vector = Memory.alloc(16), storage = Memory.alloc(capacity * 8);
 const center = Memory.alloc(12), context = Memory.alloc(128), pidOut = Memory.alloc(4);
 let query, frozen, loading, worldTransform, getControl, foreground, windowPid;
+let gameRef = null, diyRequest = null, diyTimer = null, diyCounter = 0;
 
 function native(address, result, args) {
     const key = address.toString() + result + args.join(',');
@@ -47,7 +49,7 @@ function publish(force = false) {
     const now = Date.now();
     if (force || now - lastPublish >= 1000) {
         lastPublish = now;
-        send({event: 'stats', ...stats, enabled, radius: config.radius, pending: pending.size});
+        send({event: 'stats', ...stats, enabled, radius: config.radius, pending: pending.size, melee: rapidMelee?.snapshot()});
     }
 }
 function pause(reason) {
@@ -62,6 +64,37 @@ function foregroundGame() {
     if (hwnd.isNull()) return false;
     windowPid(hwnd, pidOut);
     return pidOut.readU32() === Process.id;
+}
+function meleeContext(game) {
+    const now = Date.now();
+    let ready = true, reason = 'idle';
+    if (!foregroundGame()) { ready = false; reason = 'background'; }
+    else if (!level || now - levelSeen > 1000 || now - levelStable < 1200) { ready = false; reason = 'waiting_level'; }
+    else if (type(level) !== '.?AVLevelDI@@' || loading(level) || frozen(level)) { ready = false; reason = 'paused'; }
+    const entity = vf(game, profile.local_entity_slot, 'pointer', ['pointer'])(game);
+    if (entity.isNull()) return {ready: false, player: null, melee: false, reason: 'waiting_player'};
+    const control = getControl(entity);
+    if (control.isNull() || type(control) !== '.?AVPlayerDI_PH@@')
+        return {ready: false, player: null, melee: false, reason: 'waiting_player'};
+    const player = control.sub(16), layout = profile.melee;
+    const item = player.add(layout.equipped_item_offset).readPointer();
+    const melee = !item.isNull() && type(item) === '.?AVInventoryItem@@' &&
+        type(item.add(layout.item_description_offset).readPointer()) === '.?AVItemDescMelee@@';
+    // The speed routine runs on equipment/state changes, not on every swing.
+    // Resolve the live controller from this player's current list each frame.
+    const controllers = player.add(layout.controllers_offset), count = size(controllers);
+    if (count > 128) throw Error('Invalid player controller count: ' + count);
+    const begin = data(controllers);
+    let controller = null;
+    for (let i = 0; i < count; i++) {
+        const candidate = begin.add(i * 8).readPointer();
+        if (!candidate.isNull() && type(candidate) === '.?AVWeaponMeleeController@@' &&
+            candidate.add(layout.controller_owner_offset).readPointer().equals(player)) {
+            controller = candidate; break;
+        }
+    }
+    return {player, item, controller, melee, ready: ready && !!controller,
+        reason: !melee ? 'melee_required' : !controller ? 'waiting_controller' : reason};
 }
 function allowed(full) { return profile.trigger_enabled_offsets.every(o => full.add(o).readU8() === 1); }
 function identity(control, position) {
@@ -393,6 +426,159 @@ function tick(game) {
     for (const [key, entry] of retries) if (now - entry.seen > 60000) retries.delete(key);
     stats.scans++; stats.status = 'running'; stats.scanMs = Date.now() - now; publish();
 }
+function equippedParts() {
+    if (!gameRef) throw Error('游戏尚未进入存档');
+    const entity = vf(gameRef, profile.local_entity_slot, 'pointer', ['pointer'])(gameRef);
+    if (entity.isNull()) return null;
+    const control = getControl(entity);
+    if (control.isNull() || type(control) !== '.?AVPlayerDI_PH@@') return null;
+    const player = control.sub(16), layout = profile.melee;
+    const item = player.add(layout.equipped_item_offset).readPointer();
+    if (item.isNull() || type(item) !== '.?AVInventoryItem@@') return null;
+    const desc = item.add(layout.item_description_offset).readPointer();
+    return desc.isNull() ? null : {item, desc};
+}
+// Per-instance stats live in three identical blocks inside the item object; every
+// copy is written so the UI and the combat path cannot disagree.
+const STAT_LABELS = {
+    DamageRange: '伤害浮动', PhysicsDamageMul: '物理伤害倍率', PowerAttackDamageMul: '重击伤害倍率',
+    CriticalCondition: '耐久', DamageSize: '伤害范围', StaminaDamage: '耐力伤害', StaminaUsage: '耐力消耗',
+    CriticalProb: '暴击率', CriticalDamage: '暴击伤害', ConfusionProb: '击晕几率',
+};
+function applyDiy(plan) {
+    const layout = profile.diy;
+    const parts = equippedParts();
+    if (!parts) throw Error('没有手持武器：请先手持要修改的武器并停留在已存档场景');
+    // The offsets were measured inside ItemDescMelee. Writing them into another
+    // description class (a firearm embeds one) would corrupt unrelated fields.
+    const descType = type(parts.desc);
+    if (layout.desc_type && descType !== layout.desc_type)
+        throw Error(`手持的是 ${descType || '未知类型'}，不是 ${layout.desc_type}：` +
+            '属性偏移只对近战武器标定过，已取消写入以免写坏存档。');
+    return applyDiyDescription(parts.desc, plan);
+}
+function applyDiyDescription(desc, plan) {
+    const layout = profile.diy;
+    const descType = type(desc);
+    if (layout.desc_type && descType !== layout.desc_type)
+        throw Error(`物品描述类型为 ${descType || '未知'}，不是 ${layout.desc_type}：已取消写入。`);
+    // The stat blocks sit in the object that embeds the description, not in the
+    // inventory item itself (`AVInventoryItem + 88` only points at the description).
+    const item = desc.add(layout.item_offset_from_desc), stats = plan.stats || {};
+    const applied = [], skipped = [];
+    for (const key of Object.keys(stats)) {
+        const field = layout.stats[key];
+        if (!field) { skipped.push(STAT_LABELS[key] || key); continue; }
+        for (let copy = 0; copy < layout.copies; copy++)
+            item.add(field.offset + copy * layout.block_stride).writeFloat(stats[key]);
+        applied.push({key, value: stats[key]});
+    }
+    const verify = {};
+    for (const row of applied) verify[row.key] = +item.add(layout.stats[row.key].offset).readFloat().toFixed(4);
+    const parts_ = [];
+    if (applied.length) parts_.push('属性：' + applied.map(r => `${STAT_LABELS[r.key]} ${r.value}`).join('、'));
+    if (skipped.length) parts_.push('此构建暂不支持写入：' + skipped.join('、'));
+    if (plan.mods && Object.keys(plan.mods).length) parts_.push('配件与词条写入尚未开放');
+    if (plan.quality !== undefined) parts_.push('品质由武器定义决定，实例写入不改变品质');
+    return {message: (parts_.join('；') || '方案没有可写入的字段'), applied: applied.map(r => r.key),
+        skipped, verify, descType};
+}
+function generateDiy(plan) {
+    const layout = profile.diy, grant = profile.diy_generate;
+    if (!layout?.stats || !grant) throw Error('当前构建没有已标定的背包生成入口');
+    if (plan?.kind !== 'melee' || typeof plan.item_id !== 'string' || !plan.item_id)
+        throw Error('背包生成仅开放给已标定的近战武器');
+    const definition = profile.item_catalog?.items?.[plan.item_id];
+    if (!definition || definition.group !== 'weapons') throw Error('游戏武器目录中没有该定义 ID');
+    const stats = plan.stats || {};
+    if (!Object.keys(stats).length) throw Error('至少需要一项已标定属性');
+    for (const [key, value] of Object.entries(stats))
+        if (!layout.stats[key] || !Number.isFinite(value)) throw Error(`未标定或无效的属性：${key}`);
+
+    // Generate on the game thread only after a stable, unpaused local-player
+    // context is available. This path adds a new inventory instance; it never
+    // replaces the equipped item.
+    const now = Date.now();
+    if (!gameRef || !level || now - levelSeen > 1000 || now - levelStable < 1200)
+        throw Error('请进入单人存档并等待场景稳定后再生成');
+    if (!foregroundGame()) throw Error('请先切回游戏前台');
+    if (type(level) !== '.?AVLevelDI@@' || loading(level) || frozen(level))
+        throw Error('游戏正在加载或暂停；恢复后再生成');
+    const entity = vf(gameRef, profile.local_entity_slot, 'pointer', ['pointer'])(gameRef);
+    if (!entity || entity.isNull()) throw Error('当前没有可用的本地玩家');
+    const control = getControl(entity);
+    if (!control || control.isNull() || type(control) !== '.?AVPlayerDI_PH@@')
+        throw Error('当前没有可用的本地玩家控制对象');
+
+    const utf8 = Memory.allocUtf8String(plan.item_id);
+    const token = uint64('0x1000000000000000').or(
+        utf8.toUInt64().and(uint64('0x00ffffffffffffff')));
+    const command = Memory.alloc(grant.command_size || 0x70);
+    command.writeByteArray(new Uint8Array(grant.command_size || 0x70));
+    command.add(grant.item_id_offset || 0x58).writeU64(token);
+    command.add(grant.count_offset || 0x60).writeU32(1);
+
+    let observed = false, outcome = null, writeError = null;
+    const addItem = gameDll.base.add(grant.inventory_add_rva);
+    const listener = Interceptor.attach(addItem, {
+        onEnter(args) {
+            if (observed) return;
+            try {
+                const row = args[1], identity = itemIdentity(row);
+                if (identity.id !== plan.item_id) return;
+                observed = true;
+                const desc = row.add(profile.description_context_offset + 8).readPointer();
+                outcome = applyDiyDescription(desc, plan);
+                outcome.item = identity.name || plan.item_id;
+            } catch (e) {
+                observed = true;
+                writeError = String((e && e.message) || e);
+            }
+        }
+    });
+    try {
+        native(gameDll.base.add(grant.give_item_logic_rva), 'void', ['pointer'])(command);
+    } finally {
+        listener.detach();
+    }
+    if (!observed)
+        throw Error(`生成调用已返回，但未观察到「${definition.name}」进入背包添加函数；先检查背包，不要重复点击。`);
+    if (writeError)
+        throw Error(`已观察到物品进入背包添加函数，但属性回写失败：${writeError}。先检查背包，不要重复点击。`);
+    const values = outcome.applied.map(key => `${STAT_LABELS[key] || key} ${stats[key]}`).join('、');
+    return {generated: true, item: outcome.item, item_id: plan.item_id, applied: outcome.applied,
+        verify: outcome.verify, descType: outcome.descType,
+        message: `已将「${outcome.item}」添加到背包；属性：${values}`};
+}
+function queueDiy(kind, handler) {
+    // A synchronous RPC cannot return a promise, and blocking the JS runtime while
+    // the simulation thread waits for it would deadlock. So the request is queued
+    // and the result is reported back through send() from the simulation thread.
+    if (!profile) throw Error('代理尚未初始化');
+    if (diyRequest) throw Error('上一个 DIY 请求仍在处理');
+    const ticket = ++diyCounter;
+    diyRequest = {ticket, kind, run: handler};
+    if (diyTimer) clearTimeout(diyTimer);
+    diyTimer = setTimeout(() => {
+        if (diyRequest && diyRequest.ticket === ticket) {
+            diyRequest = null;
+            send({event: 'diy', kind, ok: false, error: '等待游戏模拟线程超时：请进入存档并保持前台'});
+        }
+    }, 3000);
+}
+function serveDiy() {
+    if (!diyRequest) return false;
+    const request = diyRequest;
+    diyRequest = null;
+    if (diyTimer) { clearTimeout(diyTimer); diyTimer = null; }
+    try {
+        const result = request.run() || {};
+        send({event: 'diy', kind: request.kind, ok: true, ...result});
+    } catch (e) {
+        send({event: 'diy', kind: request.kind, ok: false, error: String((e && e.message) || e)});
+    }
+    return true;
+}
 rpc.exports = {
     modules() { return Process.enumerateModules().filter(m => ['engine_x64_rwdi.dll', 'gamedll_ph_x64_rwdi.dll'].includes(m.name.toLowerCase())).map(m => ({name: m.name, path: m.path, size: m.size})); },
     init(p) {
@@ -418,11 +604,19 @@ rpc.exports = {
                 levelSeen = now;
             }
         }));
+        if (!profile.melee) throw Error('Melee profile is missing');
+        rapidMelee = RapidMelee.create({layout: profile.melee, engine, gameDll, context: meleeContext,
+            lease: () => Date.now() <= leaseUntil, report: send});
         const site = engine.base.add(profile.scheduler_return_rva);
         listeners.push(Interceptor.attach(exp('?GetGameTimeDelta@IGame@@QEBAMXZ'), {
-            onEnter(a) { this.game = a[0]; this.run = this.returnAddress.equals(site); },
+            onEnter(a) { this.game = a[0]; this.run = this.returnAddress.equals(site);
+                if (a[0] && !a[0].isNull()) gameRef = a[0]; },
             onLeave() {
-                if (!this.run || busy || Date.now() - lastTick < Math.max(300, Math.min(1500, stats.scanMs * 5))) return;
+                // Page requests and native writes are drained only at the
+                // verified scheduler return site, never on an arbitrary thread.
+                if (!this.run) return;
+                if (serveDiy()) return;
+                if (busy || Date.now() - lastTick < Math.max(300, Math.min(1500, stats.scanMs * 5))) return;
                 lastTick = Date.now(); busy = true;
                 try { tick(this.game); }
                 catch (e) { enabled = false; pending.clear(); stats.status = 'error'; stats.error = String(e); publish(true); }
@@ -434,6 +628,9 @@ rpc.exports = {
     configure(c) {
         if (!profile) throw Error('Not initialized');
         if (!Number.isFinite(c.radius) || c.radius < 1 || c.radius > 500) throw Error('Radius must be 1–500 m');
+        const meleeSpeed = c.melee_speed ?? 12;
+        if (!Number.isFinite(meleeSpeed) || meleeSpeed < 2 || meleeSpeed > 20 ||
+            typeof (c.rapid_melee ?? false) !== 'boolean') throw Error('Invalid melee settings');
         const keys = Object.keys(profile.item_categories);
         if (!c.item_types || keys.some(k => typeof c.item_types[k] !== 'boolean') || Object.keys(c.item_types).length !== keys.length)
             throw Error('Invalid item filters');
@@ -451,10 +648,24 @@ rpc.exports = {
             item_types: {...c.item_types}, item_rules: {items: {...rules.items}, subtypes: {...rules.subtypes}}};
         retries.clear();
         enabled = !!c.enabled; leaseUntil = Date.now() + 5000;
+        rapidMelee.configure(!!c.rapid_melee, meleeSpeed);
         pending.clear(); knownBodies.clear(); stats.error = null; stats.status = enabled ? 'waiting' : 'disabled';
-        publish(true); return {...stats, enabled};
+        publish(true); return {...stats, enabled, melee: rapidMelee.snapshot()};
     },
-    heartbeat() { leaseUntil = Date.now() + 5000; return {...stats, enabled, pending: pending.size}; },
-    stop() { enabled = false; pending.clear(); stats.status = 'disabled'; publish(true); return true; },
-    shutdown() { enabled = false; pending.clear(); listeners.splice(0).forEach(h => h.detach()); return true; }
+    heartbeat() { leaseUntil = Date.now() + 5000; return {...stats, enabled, pending: pending.size, melee: rapidMelee?.snapshot()}; },
+    diyApply(plan) {
+        // Offsets come from profiles/current.json (measured against a live item, not
+        // guessed); a build without them refuses instead of writing blind.
+        if (!profile.diy || !profile.diy.stats) throw Error('当前游戏构建没有 DIY 写入布局（profile 缺少 diy 段）：方案已通过校验，可先用「复制方案」保存。');
+        queueDiy('apply', () => applyDiy(plan));
+        return true;
+    },
+    diyGenerate(plan) {
+        if (!profile.diy || !profile.diy.stats || !profile.diy_generate)
+            throw Error('当前游戏构建没有背包生成布局');
+        queueDiy('generate', () => generateDiy(plan));
+        return true;
+    },
+    stop() { enabled = false; rapidMelee?.stop(); pending.clear(); stats.status = 'disabled'; publish(true); return true; },
+    shutdown() { enabled = false; rapidMelee?.shutdown(); pending.clear(); if (diyTimer) { clearTimeout(diyTimer); diyTimer = null; } diyRequest = null; listeners.splice(0).forEach(h => h.detach()); return true; }
 };

@@ -26,13 +26,21 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
         with tempfile.TemporaryDirectory(prefix='beast-pick-gui-check-') as work:
             ui.BASE = Path(work)
             saved = dict(radius=500, corpses=True, items=True, containers=False, open_containers=False, locked_containers=False,
+                         rapid_melee=True, melee_speed=12.0,
                          item_types={key: key != 'weapons' for key in ITEM_TYPES},
                          item_rules={"items": {"Water_FT": False}, "subtypes": {"throwables:ItemType_Grenade": False}})
             (ui.BASE / 'settings.json').write_text(json.dumps(saved), encoding='utf-8')
             window = ui.Window(check_updates=False, update_prompts=False)
             assert app.applicationName() == 'beast-pick'
-            assert window.windowTitle() == f'BP · 困兽自动搜刮  v{__version__}'
+            assert window.windowTitle() == f'BP · 消光 2 / 困兽自动搜刮  v{__version__}'
             assert not window.windowIcon().isNull()
+            assert [window.game_choice.itemData(i) for i in range(window.game_choice.count())] == ['auto', 'dl2', 'beast']
+            assert window.weapon_exclusions_button.text().startswith('排除指定')
+            report['game_choices'] = ['auto', 'dl2', 'beast']
+            assert window.tabs.count() == 1
+            assert window.tabs.tabText(0) == '自动拾取'
+            assert not window.diy_ready and window.diy_page is None
+            report.update(tabs=1, diy_hidden=True)
             assert window.update_button.isEnabled() and not window.update_client.busy
             assert not window.update_timer.isActive()
             window.on_update_checked(Release('v99.0.0', '自检更新说明'))
@@ -70,6 +78,10 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
             assert not window.containers.isChecked()
             assert not window.open_containers.isChecked() and not window.locked_containers.isChecked()
             assert not window.locked_containers.isEnabled()
+            assert not window.rapid_melee.isChecked() and not window.rapid_melee.isEnabled()
+            assert window.melee_speed.minimum() == 2 and window.melee_speed.maximum() == 20
+            assert window.melee_speed.value() == 12
+            report['rapid_melee_requires_new_opt_in'] = True
             assert all(box.isChecked() for key, box in window.type_checks.items() if key != 'weapons')
             assert (ui.BASE / 'settings.json').read_text(encoding='utf-8') == json.dumps(saved)
             assert not app.styleSheet()
@@ -93,7 +105,7 @@ def run(output: str, check_game: bool = False, check_updates: bool = False) -> i
             assert app.exec() == 0
             assert window.thread.wait(5000)
             persisted = json.loads((ui.BASE / 'settings.json').read_text(encoding='utf-8'))
-            assert persisted == saved
+            assert persisted == {**saved, 'rapid_melee': False, 'item_rules': {'items': {}, 'subtypes': {}}, 'game_preference': 'auto', 'excluded_weapons': {'dl2': [], 'beast': []}}
             # Dispose Qt while Python wrappers are still live, before a later
             # game connection extends the process lifetime past GUI teardown.
             delete(window)

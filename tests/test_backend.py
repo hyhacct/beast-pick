@@ -1,9 +1,11 @@
 import hashlib
 import math
+from types import SimpleNamespace
 
 import pytest
 
 from beast_pick.backend import Client, checked_settings, validate_modules
+from beast_pick.diy import weapons
 
 
 def test_reject_changed_build_even_when_size_matches(tmp_path):
@@ -35,6 +37,43 @@ def test_cannot_enable_without_a_target_kind():
     with pytest.raises(ValueError, match="至少选择"):
         checked_settings(8, False, False, True)
     assert checked_settings(8, False, False, False)["enabled"] is False
+
+
+def test_melee_runs_independently_of_looting_and_defaults_off():
+    assert checked_settings(8, False, False, False)["rapid_melee"] is False
+    settings = checked_settings(8, False, False, False, rapid_melee=True, melee_speed=12)
+    assert settings["rapid_melee"] is True and settings["enabled"] is False
+    assert settings["melee_speed"] == 12
+
+
+def test_diy_generate_routes_a_validated_tier_id_to_agent():
+    calls = []
+
+    class Exports:
+        def diyGenerate(self, plan):
+            calls.append(plan)
+            return {"queued": True}
+
+    client = Client()
+    client.script = SimpleNamespace(exports_sync=Exports())
+    client.session = object()
+    weapon = "dlc_ft_wpn_1hs_mach_b_baron_r1"
+    result = client.diy_generate({
+        "weapon": weapon,
+        "quality": weapons()[weapon].get("q") or 0,
+        "level": 3,
+        "stats": {"DamageRange": 2.5},
+    })
+
+    assert result == {"queued": True}
+    assert calls[0]["item_id"] == "dlc_ft_wpn_1hs_mach_b_baron_r4"
+    assert calls[0]["kind"] == "melee"
+
+
+@pytest.mark.parametrize("speed", [0, 1, 21, math.nan, math.inf, True, "12"])
+def test_reject_unsafe_melee_speed(speed):
+    with pytest.raises(ValueError, match="攻速倍率"):
+        checked_settings(8, False, False, False, rapid_melee=True, melee_speed=speed)
 
 
 def test_expanded_radius_supports_500_meters():

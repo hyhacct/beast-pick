@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "beast-pick"
 dynamic = ["version"]
-description = "Dying Light: The Beast auto loot and auto pickup tool with customizable item filters"
-keywords = ["dying-light-the-beast", "auto-loot", "auto-pickup", "autoloot", "beast-pick"]
+description = "Auto loot and pickup for Dying Light 2 and Dying Light: The Beast"
+keywords = ["dying-light-2", "dying-light-the-beast", "auto-loot", "auto-pickup", "autoloot", "beast-pick"]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

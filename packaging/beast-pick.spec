@@ -11,7 +11,7 @@ version_info = VSVersionInfo(
                      mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0, 0)),
     kids=[StringFileInfo([StringTable('040904B0', [
         StringStruct('CompanyName', 'hyhacct'),
-        StringStruct('FileDescription', 'BP · 困兽自动搜刮'),
+        StringStruct('FileDescription', 'BP · 消光 2 / 困兽自动搜刮'),
         StringStruct('FileVersion', version),
         StringStruct('InternalName', 'BP'),
         StringStruct('LegalCopyright', 'Copyright (c) 2026 hyhacct'),
@@ -22,7 +22,9 @@ version_info = VSVersionInfo(
 )
 a = Analysis(
     [str(root / 'run_tool.py')], pathex=[str(root)], binaries=[],
-    datas=[(str(root / 'beast_pick' / 'agent.js'), 'beast_pick'),
+    datas=[(str(root / 'beast_pick' / 'dl2_agent.js'), 'beast_pick'),
+           (str(root / 'beast_pick' / 'agent.js'), 'beast_pick'),
+           (str(root / 'beast_pick' / 'melee.js'), 'beast_pick'),
            (str(root / 'beast_pick' / 'apply_update.ps1'), 'beast_pick'),
            (str(root / 'beast_pick' / 'filters.js'), 'beast_pick'),
            (str(root / 'beast_pick' / 'data'), 'beast_pick/data'),

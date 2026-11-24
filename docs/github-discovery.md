@@ -7,7 +7,7 @@
 Description：
 
 ```text
-Dying Light: The Beast Auto Loot & Auto Pickup Tool | 消逝的光芒：困兽自动搜刮工具 | Auto-loot corpses, containers and items with customizable filters.
+Dying Light 2 & The Beast Auto Loot | 消逝的光芒 2 / 困兽自动搜刮工具 | Auto-loot corpses, containers and items with per-game exclusions.
 ```
 
 Website 使用现有下载入口：
@@ -16,10 +16,10 @@ Website 使用现有下载入口：
 https://github.com/hyhacct/beast-pick/releases/latest
 ```
 
-Topics（12 个）：
+Topics（13 个）：
 
 ```text
-dying-light, dying-light-the-beast, dyinglight, the-beast, auto-loot, autoloot, auto-pickup, auto-looter, game-mod, game-tools, frida, windows
+dying-light, dying-light-2, dying-light-the-beast, dyinglight, the-beast, auto-loot, autoloot, auto-pickup, auto-looter, game-mod, game-tools, frida, windows
 ```
 
 登录仓库所有者账号后，在仓库首页 **About → 齿轮** 中设置以上内容。Topics 逐个添加；无需修改仓库名。
@@ -32,8 +32,8 @@ dying-light, dying-light-the-beast, dyinglight, the-beast, auto-loot, autoloot, 
 
 ```powershell
 $repo = 'hyhacct/beast-pick'
-$description = 'Dying Light: The Beast Auto Loot & Auto Pickup Tool | 消逝的光芒：困兽自动搜刮工具 | Auto-loot corpses, containers and items with customizable filters.'
-$topics = 'dying-light,dying-light-the-beast,dyinglight,the-beast,auto-loot,autoloot,auto-pickup,auto-looter,game-mod,game-tools,frida,windows'
+$description = 'Dying Light 2 & The Beast Auto Loot | 消逝的光芒 2 / 困兽自动搜刮工具 | Auto-loot corpses, containers and items with per-game exclusions.'
+$topics = 'dying-light,dying-light-2,dying-light-the-beast,dyinglight,the-beast,auto-loot,autoloot,auto-pickup,auto-looter,game-mod,game-tools,frida,windows'
 gh repo edit $repo --description $description --homepage 'https://github.com/hyhacct/beast-pick/releases/latest' --add-topic $topics
 gh repo view $repo --json description,homepageUrl,repositoryTopics
 ```
@@ -45,7 +45,7 @@ gh repo view $repo --json description,homepageUrl,repositoryTopics
 后续标签发布会通过 [.github/workflows/release.yml](../.github/workflows/release.yml) 自动使用：
 
 ```text
-Beast Pick (BP) vX.Y.Z — Dying Light: The Beast Auto Loot
+Beast Pick (BP) vX.Y.Z — Dying Light 2 & The Beast Auto Loot
 ```
 
 现有 v0.3.8 可单独修改展示标题：

@@ -65,5 +65,72 @@
       "size": 66367488,
       "timestamp": 1793377809
     }
+  },
+  "melee": {
+    "charge_action": 162,
+    "equipped_item_offset": 11024,
+    "item_description_offset": 88,
+    "controller_speed_offsets": [
+      1224,
+      1228
+    ],
+    "input_rva": 19581376,
+    "fire_action": 210,
+    "controller_owner_offset": 8,
+    "controllers_offset": 472,
+    "attack_commit_rva": 15733280,
+    "attack_phase_offset": 564,
+    "attack_pending_offset": 328,
+    "attack_running_offset": 344,
+    "input_target_offset": 1032,
+    "frame_site_rva": 23029155,
+    "attack_action": 208,
+    "speed_update_rva": 16678128,
+    "game_register": "rsi"
+  },
+  "diy": {
+    "note": "ItemDescMelee 实例属性块；desc 内嵌于物品对象 +0x58，故 item = desc - 88",
+    "desc_type": ".?AVItemDescMelee@@",
+    "item_offset_from_desc": -88,
+    "block_stride": 1176,
+    "copies": 3,
+    "stats": {
+      "DamageRange": {
+        "offset": 772,
+        "kind": "float"
+      },
+      "PhysicsDamageMul": {
+        "offset": 784,
+        "kind": "float"
+      },
+      "PowerAttackDamageMul": {
+        "offset": 796,
+        "kind": "float"
+      },
+      "CriticalCondition": {
+        "offset": 864,
+        "kind": "float"
+      },
+      "DamageSize": {
+        "offset": 868,
+        "kind": "float"
+      },
+      "StaminaDamage": {
+        "offset": 920,
+        "kind": "float"
+      },
+      "StaminaUsage": {
+        "offset": 1160,
+        "kind": "float"
+      }
+    }
+  },
+  "diy_generate": {
+    "note": "GiveItemLogic 的 ID/数量参数及 PlayerDI 背包添加回调；仅适用于此 profile 的已校验 DLL 哈希",
+    "give_item_logic_rva": 29078640,
+    "inventory_add_rva": 19381648,
+    "command_size": 112,
+    "item_id_offset": 88,
+    "count_offset": 96
   }
 }

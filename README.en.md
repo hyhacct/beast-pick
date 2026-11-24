@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="beast_pick/assets/beast-pick.png" alt="Beast Pick (BP) — Dying Light: The Beast Auto Loot Tool" width="144" height="144">
+<img src="beast_pick/assets/beast-pick.png" alt="Beast Pick (BP) auto loot tool" width="144" height="144">
 
-# Beast Pick — Dying Light: The Beast Auto Loot Tool
+# Beast Pick — Dying Light 2 & The Beast Auto Loot
 
-**Auto loot and auto pickup for Dying Light: The Beast on Windows**
+**Auto loot and auto pickup for Dying Light 2 and Dying Light: The Beast on Windows**
 
 [简体中文](README.md) · English
 
@@ -13,120 +13,80 @@
 [![Release](https://img.shields.io/github/v/release/hyhacct/beast-pick?style=flat-square)](https://github.com/hyhacct/beast-pick/releases/latest)
 [![MIT](https://img.shields.io/badge/License-MIT-F0EDEA?style=flat-square)](LICENSE)
 
-[Download for Windows](https://github.com/hyhacct/beast-pick/releases/latest) · [Quick start](#quick-start) · [Compatibility](#supported-game-build) · [Known limitations](#known-limitations)
+[Download](https://github.com/hyhacct/beast-pick/releases/latest) · [Quick start](#quick-start) · [Supported builds](#supported-game-builds) · [Limitations](#validation-and-limitations)
 
 </div>
 
-**Beast Pick (BP)** is a Windows automatic looting tool for **Dying Light: The Beast** (《消逝的光芒：困兽》). It automatically loots nearby loaded corpses, ordinary containers and loose items using customizable pickup rules. The desktop UI and resolved item names are currently in Chinese; this guide explains the main controls in English.
+**Beast Pick (BP)** is an automatic loot and pickup tool for supported Windows builds of **Dying Light 2** and **Dying Light: The Beast**. It finds loaded objects near the local player and can loot corpses, ordinary containers and loose items. The UI and resolved item names are currently in Chinese.
 
-> **Current status:** Corpse looting, ordinary-container looting and loose-item pickup have been tested locally. Automatic cabinet opening is off by default; lock bypass is experimental. Game crashes have occurred and their cause is not fully established. Long-term stability and co-op behavior still require validation.
+> **Status:** Local samples of corpse, ordinary-container and loose-item pickup have been tested in both games. An exact Dying Light 2 weapon exclusion was also tested. Automatic cabinet opening is off by default; the separate lock option is experimental. The complete Dying Light 2 automatic cabinet flow and special collectible pickup still need live testing. Game crashes have occurred, the cause is not fully established, and long-term and co-op behavior remain unverified.
 
 ## Features
 
-| Feature | Details |
-| --- | --- |
-| Auto loot | Search nearby lootable corpses and ordinary containers, then collect allowed items individually |
-| Auto pickup | Collect loose items on the ground and individual items generated inside cabinets |
-| Configurable radius | **1–500 meters**, default **8 meters**; only loaded targets can be detected |
-| Detailed item filters | **9 groups, 71 subcategories and 4,077 item definitions**, with per-item overrides |
-| Optional cabinet opening | Handle supported cabinet interactions; disabled by default |
-| Experimental lock bypass | Optional for recognized locked cabinets; disabled by default |
-| Hotkeys | **F6** to start / pause, **F8** to stop |
-| Activity log | Chinese item names, pickup distances, counters and connection status |
-| In-app updates | Review release notes, download with SHA-256 verification, replace the executable and restart |
+- Choose Dying Light 2, The Beast, or automatic detection. The connected game is shown in the window title and status.
+- Toggle corpse looting, ordinary-container looting and loose-item pickup independently; configure a **1–500 m** radius (default 8 m).
+- Turn weapon pickup off globally or exclude specific weapons and throwables by name or internal ID. Each game keeps its own exclusion list; selecting a displayed name covers its listed variants.
+- Optionally open recognized cabinets. Locked cabinets require a separate experimental opt-in; targets must be loaded and simulated.
+- Press **F6** to start / pause and **F8** to stop. Check and install GitHub Release updates after confirmation.
+
+The current UI does not expose the old DIY weapon page or rapid-melee controls. Opening a cabinet and collecting its contents are separate operations: loose-item pickup must also be enabled.
+
+## Supported game builds
+
+| Game | Supported build | Profile |
+| --- | --- | --- |
+| Dying Light: The Beast | ph-ft patch08, 2026-10-30 / 6550878; Steam BuildID `26402545` | [current.json](beast_pick/profiles/current.json) |
+| Dying Light 2 | locally tested `1.30.2.0na` | [dl2.json](beast_pick/profiles/dl2.json) |
+
+BP validates the loaded engine and game DLL SHA-256 hashes and image sizes. A matching version label alone is not sufficient; other game builds may need a new profile.
 
 ## Quick start
 
 ### Requirements
 
-- Windows x64; locally validated on Windows 11.
-- A running copy of the game with a save loaded and a matching [build profile](beast_pick/profiles/current.json).
-- The packaged Windows release does **not** require Python or Node.js.
+Windows x64 and a running, supported game with a save loaded. The packaged release does not require Python or Node.js.
 
 ### Download and run
 
-1. Open the [latest GitHub release](https://github.com/hyhacct/beast-pick/releases/latest).
-2. Download **BP-vX.Y.Z-windows-x64.zip**, extract it and run **BP.exe**. You do not need to copy it into the game folder.
-3. Start the game and load a single-player or co-op save. Close any older BP instance.
-4. Click **连接游戏** (Connect to game), choose your radius and item filters, then return to the game.
-5. Press **F6** to start automatic looting. Press **F6** again to pause, or **F8** to stop.
-
-Each release also provides a standalone **BP.exe** and **SHA256SUMS.txt**. The ZIP includes usage instructions and the MIT license. BP starts in the stopped state each time it opens, and waits while the game is paused, loading or in the background.
+1. Download `BP-vX.Y.Z-windows-x64.zip` from [GitHub Releases](https://github.com/hyhacct/beast-pick/releases/latest), extract it and run `BP.exe`.
+2. Choose the game in the toolbar or use automatic detection. Select a game explicitly if both are running.
+3. Click **连接游戏** (Connect), configure radius and target types, then return to the game.
+4. Press **F6** to start / pause or **F8** to stop. BP starts stopped on each launch.
 
 ### Main controls
 
 | Chinese label | Meaning |
 | --- | --- |
-| 连接游戏 | Connect to game |
-| 自动搜刮尸体 | Automatically loot corpses |
-| 自动搜刮普通容器 | Automatically loot ordinary containers; also required for cabinet opening |
-| 自动拾取散落物品 | Automatically pick up loose items, including items generated inside cabinets |
-| 自动开启箱柜 | Automatically open supported cabinets; off by default |
-| 强制开启锁箱柜（试验） | Experimental lock bypass; also requires ordinary-container looting and cabinet opening |
-| 详细筛选… | Detailed subcategory and item filters |
-| 排除武器 | Exclude weapons |
-| 检查更新 | Check for updates |
+| 自动搜刮尸体 | Loot corpses |
+| 自动搜刮普通容器 | Loot ordinary containers; required for cabinet opening |
+| 自动拾取散落物品 | Pick up loose items, including generated cabinet items |
+| 拾取武器 | Allow weapon-category items globally |
+| 排除指定武器 / 投掷物 | Search and exclude individual weapon / throwable names and their listed variants |
+| 自动开启箱柜 | Opt in to opening supported cabinets |
+| 强制开启锁箱柜（试验） | Separate experimental opt-in for recognized locked cabinets |
 
-Opening a cabinet and collecting its contents are separate steps. Enable loose-item pickup to collect the individual items generated by a cabinet.
+For example, searching for `草叉` in The Beast's list selects the three listed pitchfork variants. Improvised thrown items can have a throwable category, so use the individual exclusion list for them. When exclusions are active, unreadable identities in relevant categories and opaque item bundles are skipped rather than silently bypassing the rule.
 
-## Item filters
+## Validation and limitations
 
-Choose broad groups in the main window, then use **详细筛选…** for subcategory and individual-item rules. Rules take priority in this order:
-
-```text
-Individual item > Subcategory > Group selection
-```
-
-Each detailed rule can inherit its parent setting, allow pickup or skip pickup. You can search by item name or internal ID, filter by group or subcategory, and edit multiple selected rows. **Ctrl+A** selects all currently filtered results. Canceling the dialog discards unsaved edits.
-
-Items with the same display name can have different IDs or levels. Unresolved names retain their internal IDs. When detailed rules are active, items whose identity cannot be confirmed are skipped. Opaque item bundles are also skipped when exclusions are present, to avoid indirectly collecting excluded items.
-
-## Supported game build
-
-| Field | Supported value |
-| --- | --- |
-| Game | Dying Light: The Beast |
-| Platform | Windows x64 |
-| Game version | ph-ft patch08, 2026-10-30 / 6550878 |
-| Steam BuildID | `26402545` |
-| Build profile | [beast_pick/profiles/current.json](beast_pick/profiles/current.json) |
-
-BP checks the actual game DLLs against the profile's SHA-256 hashes and image sizes when connecting. Matching the version label alone is insufficient. Game updates or different builds may require a new profile; do not disable validation or change only the version label to force a connection.
-
-## Updates and settings
-
-BP checks for a new stable GitHub release at startup. You can also click **检查更新**. Review the release notes and choose **立即更新** (Update now) or **稍后** (Later).
-
-The updater downloads and verifies the executable, stops looting, replaces the old executable and restarts BP. Settings and logs stay in place; if the new version cannot start, the updater restores the previous version. If checking or downloading fails, use the [release page](https://github.com/hyhacct/beast-pick/releases/latest).
-
-For packaged releases, `settings.json` and `logs/beast-pick.log` are stored beside **BP.exe**. Source runs store them in the repository root. If updating an older release fails with a `python312.dll` loading error, manually install **v0.3.7 or later** once; those releases fix inherited PyInstaller runtime variables during self-update.
-
-## Known limitations
-
-- The search radius uses straight-line distance and can include targets across walls or floors. **500 meters does not mean every target in that radius can be opened or looted.** Unloaded targets cannot be detected, and cabinets must enter the engine's simulation before opening can proceed.
-- Doors, unknown lock types, special non-lootable containers and associated mechanisms are skipped.
-- Lock bypass remains experimental. The most recent complete automatic-opening validation used an unlocked cabinet.
-- Game crashes have occurred; the cause is not fully confirmed and long-term stability is not established.
-- Since v0.2.1, BP allows connections in co-op saves and interacts through the local player. Host / guest pickup, item ownership and synchronization still need co-op testing.
-- All container types, full inventories, death / cutscenes, loading stress and co-op transitions have not been fully validated.
-- Automated checks cover code, UI and packaging; they do not replace tests in a running game. See the [Chinese validation notes](README.md#验证与已知限制) and [implementation history](docs/implementation.md) for recorded evidence.
+- Dying Light 2 samples include corpses, ordinary containers, dropped weapons and an exact exclusion of `技工锤头`: the excluded hammer remained while another item was picked up.
+- One direct probe opened a medium locked cabinet. BP subsequently picked up nearby items, but their attribution to that cabinet was not established. The complete automatic cabinet flow and special collectible pickup remain untested in a live session.
+- The Beast has historical local samples for corpses, ordinary containers, loose items and weapon exclusion. Its individual pitchfork exclusion has an offline policy test, not a new live test.
+- The radius uses straight-line distance and may cross walls or floors; unloaded or inactive objects cannot necessarily be processed. Inventory-full, death / cutscenes, save transitions, co-op ownership and long-term behavior are not fully validated.
+- Crashes have occurred; their cause is not fully confirmed. CI does not run the game and does not replace live testing. See [implementation history](docs/implementation.md).
 
 ## Run from source
-
-Use Python **3.12 or newer**. The currently validated dependencies are Python 3.12, PySide6 6.12 and Frida 17.24.0.
 
 ```powershell
 git clone https://github.com/hyhacct/beast-pick.git
 cd beast-pick
 py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m beast_pick
 ```
 
-For development checks and Windows packaging, see the [development guide](README.md#开发与发布) and [contribution guide](CONTRIBUTING.md). Version history is recorded in [CHANGELOG.md](CHANGELOG.md).
+For checks, packaging and release workflow, see [CONTRIBUTING.md](CONTRIBUTING.md). Settings and logs are stored beside the packaged EXE, or at the repository root when running from source.
 
 ## Feedback and license
 
-Report problems through [GitHub Issues](https://github.com/hyhacct/beast-pick/issues), including your game build, Windows version, target type, reproduction steps and relevant logs.
-
-Beast Pick is an unofficial tool. Project code is available under the [MIT License](LICENSE); game names, item names and related content belong to their respective rights holders.
+Report issues with the game name, build, target type, reproduction steps and relevant logs. Project code is available under the [MIT License](LICENSE). This is an unofficial tool.

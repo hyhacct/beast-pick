@@ -23,8 +23,10 @@ Node.js 用于运行 JavaScript 策略检查。普通单元测试不要求游戏
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
-node --test tests\agent.test.cjs tests\filters.test.cjs
+node --test tests\agent.test.cjs tests\dl2_agent.test.cjs tests\filters.test.cjs tests\melee.test.cjs
 node --check beast_pick\agent.js
+node --check beast_pick\dl2_agent.js
+node --check beast_pick\melee.js
 ```
 
 修改构建、界面或包内资源后，还需运行 `build.ps1`，验证真实 `dist/BP.exe`。`--check-game` 会连接游戏但不启用搜刮，不能代替实际领取验证。
@@ -50,7 +52,7 @@ node --check beast_pick\agent.js
 | --- | --- |
 | 仓库、发行包、命令 | `beast-pick` |
 | Python 导入包 | `beast_pick` |
-| 窗口标题 | `BP · 困兽自动搜刮` |
+| 窗口标题 | 根据连接状态显示《消光 2》或《困兽》 |
 | Windows 构建 | `dist/BP.exe` |
 | 打包配置 | `packaging/beast-pick.spec` |
 | 日志 | `logs/beast-pick.log` |

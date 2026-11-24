@@ -128,3 +128,38 @@ test('transient loot failures retry without multi-second stalls', () => {
     assert.equal(scenario.second.failures, 2);
     assert.equal(scenario.second.next, 1750);
 });
+
+function diyRun(descType) {
+    const writes = [];
+    const node = () => ({writeFloat(v) { writes.push(v); }, readFloat() { return 1.5; },
+        add() { return node(); }, readPointer() { return node(); }, isNull() { return false; },
+        toString() { return '0x1'; }});
+    const scenario = {descType, writes, pointer: node()};
+    const sandbox = vm.createContext({scenario, Memory: {alloc: () => scenario.pointer},
+        rpc: {}, ptr: () => scenario.pointer, send() {}});
+    vm.runInContext(source + `
+        profile = {diy: {desc_type: '.?AVItemDescMelee@@', item_offset_from_desc: -88,
+            block_stride: 1176, copies: 3, stats: {DamageRange: {offset: 772, kind: 'float'}}},
+            item_catalog: {items: {}}};
+        type = () => scenario.descType;
+        equippedParts = () => ({item: scenario.pointer, desc: scenario.pointer});
+        scenario.result = (() => { try { return {ok: true, value: applyDiy({stats: {DamageRange: 2.5}})}; }
+            catch (e) { return {ok: false, error: String(e.message || e)}; } })();
+    `, sandbox);
+    return scenario;
+}
+
+test('diy writes every copy of a calibrated stat block', () => {
+    const scenario = diyRun('.?AVItemDescMelee@@');
+    assert.equal(scenario.result.ok, true, scenario.result.error);
+    assert.deepEqual(scenario.writes, [2.5, 2.5, 2.5]);
+    assert.deepEqual(Array.from(scenario.result.value.applied), ['DamageRange']);
+    assert.equal(scenario.result.value.verify.DamageRange, 1.5);
+});
+
+test('diy refuses to write melee offsets into another description class', () => {
+    const scenario = diyRun('.?AVItemDescFirearm@@');
+    assert.equal(scenario.result.ok, false);
+    assert.match(scenario.result.error, /取消写入/);
+    assert.deepEqual(scenario.writes, []);
+});

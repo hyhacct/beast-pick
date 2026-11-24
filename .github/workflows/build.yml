@@ -61,9 +61,13 @@ jobs:
         run: |
           .\.venv\Scripts\python.exe -m pytest -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test tests\agent.test.cjs tests\filters.test.cjs
+          node --test tests\agent.test.cjs tests\dl2_agent.test.cjs tests\filters.test.cjs tests\melee.test.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check beast_pick\agent.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check beast_pick\dl2_agent.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check beast_pick\melee.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and check the actual EXE
         shell: pwsh

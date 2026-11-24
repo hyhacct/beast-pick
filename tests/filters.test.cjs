@@ -81,3 +81,10 @@ test('state changes alone cannot claim that a complex cabinet has generated cont
     assert.equal(LootPolicy.openConfirmed('.?AVComplexContainer@@',2,2,1),false);
     assert.equal(LootPolicy.openConfirmed('.?AVDoor@@',1,2,1),false);
 });
+
+test('a specific pitchfork is excluded without excluding other throwables', () => {
+ const id='dlc_ft_Thrown_Pitchfork_wt1';
+ const rule={items:{[id]:false},subtypes:{}};
+ assert.equal(LootPolicy.accepts(2,all,groups,{id,subtype:'throwables:ItemType_ThrowableSpear'},rule),false);
+ assert.equal(LootPolicy.accepts(2,all,groups,{id:'other_throwable',subtype:'throwables:ItemType_ThrowableSpear'},rule),true);
+});

@@ -1,0 +1,51 @@
+{
+  "id": "dl2-1.30.2.0na-202610",
+  "label": "消逝的光芒 2 1.30.2.0na（散落物品测试版）",
+  "scheduler_return_rva": 11627698,
+  "player_transform_slot": 152,
+  "local_entity_slot": 154,
+  "player_context_offset": 8336,
+  "can_slot": 203,
+  "execute_slot": 204,
+  "can_rva": 26249984,
+  "execute_rva": 26802368,
+  "modules": {
+    "engine_x64_rwdi.dll": {
+      "sha256": "99d10ed51aa0fa7237ab90566d4c3c63d583bee4747f13a3c2ac61088de00ed2",
+      "size": 47550464
+    },
+    "gamedll_ph_x64_rwdi.dll": {
+      "sha256": "ff0c1080f0cf9491d40afad185cb18e179e4392b342b93270213661d349f8c5a",
+      "size": 62660608
+    }
+  },
+  "body_init_slot": 227,
+  "body_init_rva": 15665776,
+  "container_init_rva": 15665856,
+  "container_can_rva": 15432400,
+  "container_execute_rva": 15706048,
+  "body_iface_offset": 984,
+  "body_take_rva": 15644368,
+  "body_take_one_rva": 15644848,
+  "body_state_offset": 904,
+  "body_items_offsets": [
+    1200,
+    1216
+  ],
+  "body_item_stride": 400,
+  "description_context_offset": 48,
+  "description_category_slot": 84,
+  "description_category_rva": 10311744,
+  "dropped_description_offset": 1504,
+  "container_item_description_offset": 896,
+  "container_item_can_rva": 15432816,
+  "container_item_execute_rva": 15706448,
+  "complex_can_rva": 15432224,
+  "complex_execute_rva": 15705424,
+  "complex_lock_offset": 1008,
+  "complex_no_loot_offset": 1152,
+  "collectable_can_rva": 15432000,
+  "collectable_execute_rva": 15703984,
+  "identity_getter_slot": 81,
+  "identity_getter_rva": 3092832
+}
