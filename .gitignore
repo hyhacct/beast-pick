@@ -15,3 +15,34 @@ settings.json.tmp
 *.dmp
 engine-exports.txt
 native-name-evidence.json
+
+# 本地助手与机器状态（不提交个人会话、缓存或日志）
+.workbuddy/
+
+# Python 测试、检查和覆盖率输出
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# 编辑器、操作系统和临时生成文件
+node_modules/
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z
+*.whl
+*.tmp
+*.log
+*.bak
+*.orig
+*.rej
+*.stackdump
+.DS_Store
+Thumbs.db
